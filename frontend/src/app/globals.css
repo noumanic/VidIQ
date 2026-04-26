@@ -1,0 +1,290 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light (rarely used — app is dark-first) */
+    --background: 250 50% 99%;
+    --foreground: 260 30% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 260 30% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 30% 8%;
+    --primary: 270 91% 60%;
+    --primary-foreground: 270 50% 98%;
+    --secondary: 270 30% 96%;
+    --secondary-foreground: 270 47% 11%;
+    --muted: 270 30% 96%;
+    --muted-foreground: 260 15% 46%;
+    --accent: 270 40% 96%;
+    --accent-foreground: 270 60% 30%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 270 20% 90%;
+    --input: 270 20% 90%;
+    --ring: 270 91% 60%;
+    --radius: 0.875rem;
+  }
+
+  .dark {
+    /* Deep midnight with violet undertone */
+    --background: 265 35% 5%;
+    --foreground: 270 30% 96%;
+    --card: 265 30% 8%;
+    --card-foreground: 270 30% 96%;
+    --popover: 265 30% 8%;
+    --popover-foreground: 270 30% 96%;
+    --primary: 270 91% 65%;
+    --primary-foreground: 270 50% 10%;
+    --secondary: 265 25% 14%;
+    --secondary-foreground: 270 30% 92%;
+    --muted: 265 25% 12%;
+    --muted-foreground: 270 15% 65%;
+    --accent: 270 40% 18%;
+    --accent-foreground: 270 90% 92%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 270 25% 16%;
+    --input: 270 25% 16%;
+    --ring: 270 91% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1, "cv11" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  /* ── Glass morphism ─────────────────────────────────────────── */
+  .glass {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--card) / 0.65) 0%,
+      hsl(var(--card) / 0.35) 100%
+    );
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid hsl(270 30% 100% / 0.08);
+    box-shadow:
+      0 1px 0 hsl(270 30% 100% / 0.05) inset,
+      0 30px 60px -30px hsl(270 60% 5% / 0.6);
+  }
+
+  .glass-strong {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--card) / 0.85) 0%,
+      hsl(var(--card) / 0.65) 100%
+    );
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid hsl(270 30% 100% / 0.10);
+  }
+
+  /* ── Gradient text ─────────────────────────────────────────── */
+  .text-gradient {
+    background: linear-gradient(
+      110deg,
+      #c084fc 0%,
+      #a855f7 30%,
+      #ec4899 60%,
+      #06b6d4 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    background-size: 200% 100%;
+    animation: gradient-shift 8s ease infinite;
+  }
+
+  .text-gradient-static {
+    background: linear-gradient(110deg, #c084fc, #a855f7 40%, #ec4899);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ── Glow effects ──────────────────────────────────────────── */
+  .glow-primary {
+    box-shadow:
+      0 0 0 1px hsl(270 91% 65% / 0.3),
+      0 8px 24px -8px hsl(270 91% 65% / 0.5),
+      0 20px 60px -20px hsl(270 91% 65% / 0.4);
+  }
+
+  .glow-violet {
+    box-shadow:
+      0 0 60px hsl(270 91% 65% / 0.15),
+      0 0 120px hsl(280 80% 60% / 0.1);
+  }
+
+  /* ── Hero gradient backdrop ────────────────────────────────── */
+  .hero-gradient {
+    background:
+      radial-gradient(
+        ellipse 90% 60% at 50% -10%,
+        hsl(270 91% 60% / 0.25),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 60% 50% at 85% 20%,
+        hsl(310 80% 60% / 0.18),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 60% 50% at 10% 30%,
+        hsl(195 90% 55% / 0.15),
+        transparent 60%
+      );
+  }
+
+  /* ── Grid background ───────────────────────────────────────── */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(270 25% 100% / 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(270 25% 100% / 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .bg-grid-fade {
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+
+  /* ── Animated noise texture ────────────────────────────────── */
+  .noise::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  /* ── Shimmer for loading states ────────────────────────────── */
+  .shimmer {
+    background: linear-gradient(
+      110deg,
+      hsl(var(--muted)) 8%,
+      hsl(var(--muted-foreground) / 0.15) 18%,
+      hsl(var(--muted)) 33%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  /* ── Scrollbar styling ─────────────────────────────────────── */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(270 25% 25%);
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(270 91% 60%);
+  }
+
+  /* ── Border gradient (CSS trick using mask) ────────────────── */
+  .border-gradient {
+    position: relative;
+    background-clip: padding-box;
+  }
+  .border-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(270 91% 65% / 0.6), hsl(310 80% 60% / 0.4), transparent);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+/* ── Keyframes ───────────────────────────────────────────────── */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes aurora {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.7;
+  }
+  33% {
+    transform: translate(30px, -20px) scale(1.1);
+    opacity: 0.9;
+  }
+  66% {
+    transform: translate(-20px, 30px) scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 hsl(270 91% 65% / 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 14px hsl(270 91% 65% / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(270 91% 65% / 0);
+  }
+}
