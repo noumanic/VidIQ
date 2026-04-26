@@ -53,56 +53,56 @@ The system is designed around three principles:
 
 ---
 
-## 🏛 Architecture
+# 🏛 Architecture
 
-### System overview
+## System Overview
 
 ```mermaid
 flowchart LR
-    subgraph Client["🌐 Browser"]
-        UI["Next.js 14 SPA<br/>App Router · Tailwind · shadcn/ui<br/>TanStack Query · Framer Motion"]
+    subgraph Client["🌐  Browser"]
+        UI["Next.js 14 SPA\nApp Router · Tailwind\nTanStack Query"]
     end
 
-    subgraph Edge["⚡ Edge / Proxy"]
-        Rewrite["Next.js Rewrites<br/>/proxy/api/* → :8000<br/>/proxy/media/* → :8000"]
+    subgraph Edge["⚡  Edge / Proxy"]
+        Rewrite["Next.js Rewrites\n/proxy/api → :8000\n/proxy/media → :8000"]
     end
 
-    subgraph Backend["🐍 Backend (FastAPI · async)"]
-        REST["REST Routes<br/>/api/videos · /api/live"]
-        WS["WebSocket<br/>/ws/videos/{id}"]
-        Bus["EventBus<br/>(in-process pub/sub)"]
-        Workers["Background Workers<br/>BackgroundTasks · LiveSession"]
+    subgraph Backend["🐍  Backend — FastAPI async"]
+        REST["REST Routes\n/api/videos · /api/live"]
+        WS["WebSocket\n/ws/videos/{id}"]
+        Bus["EventBus\nin-process pub/sub"]
+        Workers["Background Workers\nBackgroundTasks · LiveSession"]
     end
 
-    subgraph Pipeline["🤖 AI Pipeline"]
-        YT["yt-dlp<br/>metadata · audio · video"]
-        TC["Transcription<br/>YT API → Whisper local"]
-        FR["Frame Extraction<br/>OpenCV scene-change"]
-        VS["Vision Captioning<br/>Gemini Vision"]
-        SUM["Summarisation<br/>Map → Reduce → Synth"]
-        QA["Q&A Retrieval<br/>Keyword + LLM"]
+    subgraph Pipeline["🤖  AI Pipeline"]
+        YT["yt-dlp\nmetadata · audio · video"]
+        TC["Transcription\nYT API → Whisper"]
+        FR["Frame Extraction\nOpenCV scene-change"]
+        VS["Vision Captioning\nGemini Vision"]
+        SUM["Summarisation\nMap → Reduce → Synth"]
+        QA["Q&A Retrieval\nKeyword + LLM"]
     end
 
-    subgraph LLM["🧠 LLM Providers (auto-fallback chain)"]
-        GEM["Google Gemini<br/>(free tier)"]
-        GRQ["Groq<br/>(free tier)"]
-        OAI["OpenAI<br/>(paid)"]
-        STUB["Stub<br/>(offline demo)"]
+    subgraph LLM["🧠  LLM Providers — auto-fallback"]
+        GEM["Google Gemini\nfree tier"]
+        GRQ["Groq\nfree tier"]
+        OAI["OpenAI\npaid"]
+        STUB["Stub\noffline demo"]
     end
 
-    subgraph Storage["💾 Storage"]
-        DB[("SQLite / Postgres<br/>SQLAlchemy 2 async")]
-        Media["/media static mount<br/>frames · audio · video"]
+    subgraph Storage["💾  Storage"]
+        DB[("SQLite / Postgres\nSQLAlchemy 2 async")]
+        Media["/media static mount\nframes · audio · video"]
     end
 
-    UI -- HTTPS --> Rewrite
-    UI -. WebSocket .-> WS
+    UI -->|HTTPS| Rewrite
+    UI -.->|WebSocket| WS
     Rewrite --> REST
     REST --> Workers
     Workers --> Pipeline
     Workers --> Bus
     Bus -.-> WS
-    WS -. live updates .-> UI
+    WS -.->|live updates| UI
 
     Pipeline --> YT
     Pipeline --> TC
@@ -114,19 +114,34 @@ flowchart LR
     SUM --> LLM
     QA --> LLM
     VS --> LLM
-    LLM -. on quota / 4xx .-> LLM
+    LLM -.->|on quota/4xx| LLM
 
     Pipeline --> Storage
     Workers --> Storage
     REST --> Storage
     Rewrite --> Media
 
-    classDef client fill:#a855f7,stroke:#7e22ce,color:#fff
-    classDef edge fill:#06b6d4,stroke:#0891b2,color:#fff
-    classDef backend fill:#10b981,stroke:#047857,color:#fff
-    classDef pipeline fill:#f59e0b,stroke:#b45309,color:#fff
-    classDef llm fill:#ec4899,stroke:#be185d,color:#fff
-    classDef storage fill:#6366f1,stroke:#4338ca,color:#fff
+    classDef client   fill:#7c3aed,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef edge     fill:#0891b2,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef backend  fill:#059669,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef pipeline fill:#d97706,stroke:#000000,stroke-width:3px,color:#000000,font-weight:bold
+    classDef llm      fill:#db2777,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef storage  fill:#4338ca,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+
+    %% Light subgraph backgrounds so GitHub's hardcoded teal title text (#3387a3) is readable
+    classDef sgClient   fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#3387a3
+    classDef sgEdge     fill:#e0f7fa,stroke:#0891b2,stroke-width:2px,color:#3387a3
+    classDef sgBackend  fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#3387a3
+    classDef sgPipeline fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#3387a3
+    classDef sgLLM      fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#3387a3
+    classDef sgStorage  fill:#e0e7ff,stroke:#4338ca,stroke-width:2px,color:#3387a3
+
+    class Client sgClient
+    class Edge sgEdge
+    class Backend sgBackend
+    class Pipeline sgPipeline
+    class LLM sgLLM
+    class Storage sgStorage
 
     class UI client
     class Rewrite edge
@@ -134,128 +149,213 @@ flowchart LR
     class YT,TC,FR,VS,SUM,QA pipeline
     class GEM,GRQ,OAI,STUB llm
     class DB,Media storage
+
+    linkStyle 0  stroke:#7c3aed,stroke-width:3px,color:#ffffff
+    linkStyle 1  stroke:#7c3aed,stroke-width:3px,stroke-dasharray:6,color:#ffffff
+    linkStyle 2  stroke:#0891b2,stroke-width:3px
+    linkStyle 3  stroke:#059669,stroke-width:3px
+    linkStyle 4  stroke:#059669,stroke-width:3px
+    linkStyle 5  stroke:#059669,stroke-width:3px
+    linkStyle 6  stroke:#059669,stroke-width:3px,stroke-dasharray:6
+    linkStyle 7  stroke:#7c3aed,stroke-width:3px,stroke-dasharray:6,color:#ffffff
+    linkStyle 8  stroke:#d97706,stroke-width:3px
+    linkStyle 9  stroke:#d97706,stroke-width:3px
+    linkStyle 10 stroke:#d97706,stroke-width:3px
+    linkStyle 11 stroke:#d97706,stroke-width:3px
+    linkStyle 12 stroke:#d97706,stroke-width:3px
+    linkStyle 13 stroke:#d97706,stroke-width:3px
+    linkStyle 14 stroke:#db2777,stroke-width:3px
+    linkStyle 15 stroke:#db2777,stroke-width:3px
+    linkStyle 16 stroke:#db2777,stroke-width:3px
+    linkStyle 17 stroke:#db2777,stroke-width:3px,stroke-dasharray:6,color:#ffffff
+    linkStyle 18 stroke:#4338ca,stroke-width:3px
+    linkStyle 19 stroke:#4338ca,stroke-width:3px
+    linkStyle 20 stroke:#4338ca,stroke-width:3px
+    linkStyle 21 stroke:#0891b2,stroke-width:3px
 ```
 
-### Recorded video pipeline
+---
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant UI as Next.js UI
-    participant API as FastAPI<br/>/api/videos
-    participant Worker as Background Worker
-    participant YT as yt-dlp
-    participant Whisper as faster-whisper
-    participant CV as OpenCV
-    participant Vision as Vision LLM
-    participant LLM as Text LLM
-    participant DB as SQLAlchemy
-    participant Bus as EventBus
-    participant WS as WebSocket
-
-    User->>UI: paste YouTube URL
-    UI->>API: POST /api/videos { url }
-    API->>DB: INSERT Video (status=processing)
-    API-->>UI: 202 Accepted (video_id)
-    API->>Worker: schedule run_youtube_pipeline
-
-    UI->>WS: subscribe ws/videos/{id}
-
-    Worker->>YT: fetch_metadata
-    YT-->>Worker: title · duration · thumbnail
-    Worker->>DB: UPDATE metadata
-    Worker->>Bus: emit stage=metadata
-    Bus->>WS: broadcast → UI
-
-    Worker->>YT: fetch_youtube_transcript
-    alt transcript available
-        YT-->>Worker: timed segments
-    else no transcript
-        Worker->>YT: download_audio
-        Worker->>Whisper: transcribe(audio)
-        Whisper-->>Worker: timed segments
-    end
-    Worker->>DB: INSERT transcript_segments
-    Worker->>Bus: emit stage=transcript
-
-    Worker->>YT: download_video (≤720p)
-    Worker->>CV: extract scene-change keyframes
-    CV-->>Worker: top-N frames
-    loop each frame
-        Worker->>Vision: caption + tag + detect event
-        Vision-->>Worker: caption, tags, event
-    end
-    Worker->>DB: INSERT keyframes
-    Worker->>Bus: emit stage=vision
-
-    Worker->>LLM: summarise_video (map-reduce)
-    Note right of LLM: short videos: 1 call<br/>long videos: chunk → synth
-    LLM-->>Worker: overview, key_points, chapters, events
-    Worker->>DB: INSERT summary + events
-    Worker->>Bus: emit stage=done
-
-    Bus->>WS: broadcast completion
-    WS->>UI: render summary tabs
-```
-
-### LLM provider auto-failover
+## Recorded Video Pipeline
 
 ```mermaid
 flowchart TD
-    Start([chat_json or chat_text]) --> Chain{provider chain}
-    Chain -->|"1️⃣ Gemini"| G[Gemini]
-    G -->|success| Done([return result])
-    G -->|429 quota| GR[cool-off model<br/>6h–24h]
-    GR --> GN{more Gemini<br/>models?}
-    GN -->|yes| G
-    GN -->|no| TryGroq{"GROQ_API_KEY<br/>set?"}
+    User(["👤 User"]):::actor
+    UI["Next.js UI"]:::fe
+    API["FastAPI\n/api/videos"]:::be
+    DB[("SQLAlchemy\nDB")]:::store
+    W["Background\nWorker"]:::be
+    WS["WebSocket\n/ws/videos"]:::be
 
-    Chain -->|"2️⃣ Groq"| TryGroq
-    TryGroq -->|yes| Q[Groq<br/>llama-3.3-70b-versatile]
-    Q -->|success| Done
-    Q -->|fail| QR[cool-off + try<br/>llama-3.1-8b<br/>then gemma2-9b]
-    QR --> QN{any Groq<br/>model OK?}
-    QN -->|yes| Q
-    QN -->|no| TryOAI{"OPENAI_API_KEY<br/>set?"}
+    User -->|Paste YouTube URL| UI
+    UI -->|POST /api/videos| API
+    API -->|INSERT Video\nstatus=processing| DB
+    API -->|202 Accepted\nvideo_id| UI
+    API -->|schedule\nrun_youtube_pipeline| W
+    UI -->|subscribe\nws/videos/id| WS
 
-    TryGroq -->|no| TryOAI
-    TryOAI -->|yes| O[OpenAI<br/>gpt-4o-mini]
-    O -->|success| Done
-    O -->|fail| Stub
-    TryOAI -->|no| Stub
-    Stub([stub response])
+    S1{{"🟣 Stage 1\nMetadata"}}:::stage1
+    YT1["yt-dlp\nfetch_metadata"]:::ingest
+    DB1["UPDATE\nmetadata"]:::store
+    BUS1["EventBus emit\nstage=metadata"]:::be
 
-    classDef ok fill:#10b981,stroke:#047857,color:#fff
-    classDef warn fill:#f59e0b,stroke:#b45309,color:#fff
-    classDef fail fill:#ef4444,stroke:#b91c1c,color:#fff
-    class G,Q,O ok
-    class GR,QR warn
-    class Stub fail
+    W --> S1
+    S1 --> YT1
+    YT1 -->|title · duration\nthumbnail| W
+    W --> DB1
+    W --> BUS1
+    BUS1 -->|broadcast| WS
+
+    S2{{"🔵 Stage 2\nTranscript"}}:::stage2
+    YT2["fetch_youtube\ntranscript"]:::ingest
+    WH["faster-whisper\ntranscribe audio"]:::ingest
+    DB2["INSERT\ntranscript_segments"]:::store
+    BUS2["EventBus emit\nstage=transcript"]:::be
+
+    BUS1 --> S2
+    S2 --> YT2
+    YT2 -->|no transcript| WH
+    YT2 -->|timed segments| DB2
+    WH -->|timed segments| DB2
+    DB2 --> BUS2
+
+    S3{{"🟢 Stage 3\nVision"}}:::stage3
+    CV["OpenCV\nscene keyframes"]:::proc
+    VIS["Vision LLM\ncaption + tag"]:::ai
+    DB3["INSERT\nkeyframes"]:::store
+    BUS3["EventBus emit\nstage=vision"]:::be
+
+    BUS2 --> S3
+    S3 --> CV
+    CV -->|top-N frames| VIS
+    VIS -->|caption · tags · event| DB3
+    DB3 --> BUS3
+
+    S4{{"🟠 Stage 4\nSummary"}}:::stage4
+    LLM["Text LLM\nmap-reduce summarise"]:::ai
+    DB4["INSERT summary\n+ events"]:::store
+    BUS4["EventBus emit\nstage=done"]:::be
+
+    BUS3 --> S4
+    S4 --> LLM
+    LLM -->|overview · key_points\nchapters · events| DB4
+    DB4 --> BUS4
+    BUS4 -->|broadcast completion| WS
+    WS -->|render summary tabs| UI
+
+    classDef actor  fill:#1e293b,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef fe     fill:#7c3aed,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef be     fill:#059669,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef ingest fill:#0891b2,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef proc   fill:#d97706,stroke:#000000,stroke-width:3px,color:#000000,font-weight:bold
+    classDef ai     fill:#db2777,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef store  fill:#4338ca,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef stage1 fill:#7c3aed,stroke:#000000,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef stage2 fill:#0891b2,stroke:#000000,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef stage3 fill:#059669,stroke:#000000,stroke-width:4px,color:#ffffff,font-weight:bold
+    classDef stage4 fill:#d97706,stroke:#000000,stroke-width:4px,color:#000000,font-weight:bold
 ```
 
-### Live stream pipeline
+---
+
+## LLM Provider Auto-Failover
+
+```mermaid
+flowchart TD
+    Start([Input: chat_json or chat_text]):::startend --> Chain{Select provider}:::decision
+
+    Chain -->|1 - Try Gemini first| G["Google Gemini"]:::gemini
+    G -->|success| Done([Return result]):::startend
+    G -->|429 quota exceeded| GR["Cool-off model\n6h to 24h backoff"]:::warn
+    GR --> GN{More Gemini\nmodels available?}:::decision
+    GN -->|yes| G
+    GN -->|no| TryGroq{GROQ_API_KEY set?}:::decision
+
+    Chain -->|2 - Try Groq| TryGroq
+    TryGroq -->|yes| Q["Groq\nllama-3.3-70b-versatile"]:::groq
+    Q -->|success| Done
+    Q -->|fail| QR["Cool-off then try\nllama-3.1-8b\nthen gemma2-9b"]:::warn
+    QR --> QN{Any Groq\nmodel OK?}:::decision
+    QN -->|yes| Q
+    QN -->|no| TryOAI{OPENAI_API_KEY set?}:::decision
+
+    TryGroq -->|no| TryOAI
+    TryOAI -->|yes| O["OpenAI\ngpt-4o-mini"]:::openai
+    O -->|success| Done
+    O -->|fail| Stub
+    TryOAI -->|no| Stub(["Stub response\noffline demo"]):::stub
+
+    classDef startend  fill:#1e293b,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef decision  fill:#fbbf24,stroke:#000000,stroke-width:3px,color:#000000,font-weight:bold
+    classDef gemini    fill:#4285f4,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef groq      fill:#7c3aed,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef openai    fill:#059669,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef warn      fill:#f97316,stroke:#000000,stroke-width:3px,color:#000000,font-weight:bold
+    classDef stub      fill:#dc2626,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+
+    linkStyle 0  stroke:#94a3b8,stroke-width:3px,color:#ffffff
+    linkStyle 1  stroke:#4285f4,stroke-width:3px,color:#ffffff
+    linkStyle 2  stroke:#059669,stroke-width:3px,color:#ffffff
+    linkStyle 3  stroke:#f97316,stroke-width:3px,color:#ffffff
+    linkStyle 4  stroke:#f97316,stroke-width:3px,color:#ffffff
+    linkStyle 5  stroke:#4285f4,stroke-width:3px,color:#ffffff
+    linkStyle 6  stroke:#94a3b8,stroke-width:3px,color:#ffffff
+    linkStyle 7  stroke:#7c3aed,stroke-width:3px,color:#ffffff
+    linkStyle 8  stroke:#7c3aed,stroke-width:3px,color:#ffffff
+    linkStyle 9  stroke:#059669,stroke-width:3px,color:#ffffff
+    linkStyle 10 stroke:#f97316,stroke-width:3px,color:#ffffff
+    linkStyle 11 stroke:#f97316,stroke-width:3px,color:#ffffff
+    linkStyle 12 stroke:#7c3aed,stroke-width:3px,color:#ffffff
+    linkStyle 13 stroke:#94a3b8,stroke-width:3px,color:#ffffff
+    linkStyle 14 stroke:#94a3b8,stroke-width:3px,color:#ffffff
+    linkStyle 15 stroke:#059669,stroke-width:3px,color:#ffffff
+    linkStyle 16 stroke:#059669,stroke-width:3px,color:#ffffff
+    linkStyle 17 stroke:#dc2626,stroke-width:3px,color:#ffffff
+    linkStyle 18 stroke:#dc2626,stroke-width:3px,color:#ffffff
+```
+
+---
+
+## Live Stream Pipeline
 
 ```mermaid
 flowchart LR
-    Start([POST /api/live]) --> Session[LiveSession task]
-    Session --> Loop{running?}
-    Loop -->|yes| Chunk[yt-dlp grab N-sec chunk]
-    Chunk --> Frames[OpenCV keyframes]
-    Frames --> Vision[Gemini vision caption]
-    Chunk --> Audio[faster-whisper transcribe]
-    Vision --> Roll[rolling_summary LLM]
-    Audio --> Roll
-    Roll --> Save[(persist transcript<br/>frames · events<br/>rolling summary)]
-    Save --> Emit[EventBus → WebSocket]
-    Emit --> UI[UI updates Live tab]
+    Start([POST /api/live]):::startend --> Session["LiveSession task"]:::backend
+    Session --> Loop{running?}:::decision
+    Loop -->|yes| Chunk["yt-dlp\ngrab N-sec chunk"]:::ingest
+    Chunk --> Frames["OpenCV\nkeyframes"]:::process
+    Chunk --> Audio["faster-whisper\ntranscribe"]:::process
+    Frames --> Vision["Gemini Vision\ncaption frame"]:::ai
+    Audio --> Roll["LLM\nrolling_summary"]:::ai
+    Vision --> Roll
+    Roll --> Save[("Persist\ntranscript · frames\nevents · summary")]:::storage
+    Save --> Emit["EventBus\nto WebSocket"]:::backend
+    Emit --> UI["UI updates\nLive tab"]:::frontend
     Save --> Loop
-    Loop -->|stopped| End([cleanup + finalise])
+    Loop -->|stopped| End([Cleanup + finalise]):::startend
 
-    classDef proc fill:#a855f7,stroke:#7e22ce,color:#fff
-    classDef store fill:#6366f1,stroke:#4338ca,color:#fff
-    class Chunk,Frames,Vision,Audio,Roll proc
-    class Save store
+    classDef startend  fill:#1e293b,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef decision  fill:#fbbf24,stroke:#000000,stroke-width:3px,color:#000000,font-weight:bold
+    classDef ingest    fill:#0891b2,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef process   fill:#d97706,stroke:#000000,stroke-width:3px,color:#000000,font-weight:bold
+    classDef ai        fill:#db2777,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef backend   fill:#059669,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef storage   fill:#4338ca,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef frontend  fill:#7c3aed,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+
+    linkStyle 0  stroke:#059669,stroke-width:3px,color:#ffffff
+    linkStyle 1  stroke:#059669,stroke-width:3px,color:#ffffff
+    linkStyle 2  stroke:#fbbf24,stroke-width:3px,color:#000000
+    linkStyle 3  stroke:#0891b2,stroke-width:3px
+    linkStyle 4  stroke:#0891b2,stroke-width:3px
+    linkStyle 5  stroke:#db2777,stroke-width:3px
+    linkStyle 6  stroke:#db2777,stroke-width:3px
+    linkStyle 7  stroke:#db2777,stroke-width:3px
+    linkStyle 8  stroke:#4338ca,stroke-width:3px
+    linkStyle 9  stroke:#059669,stroke-width:3px
+    linkStyle 10 stroke:#7c3aed,stroke-width:3px
+    linkStyle 11 stroke:#fbbf24,stroke-width:3px,stroke-dasharray:6,color:#ffffff
+    linkStyle 12 stroke:#94a3b8,stroke-width:3px,color:#ffffff
 ```
 
 ### Data model
