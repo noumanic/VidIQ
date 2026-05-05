@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/sync-marketing.mjs",
+    "prebuild": "node scripts/sync-marketing.mjs",
+    "sync-marketing": "node scripts/sync-marketing.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

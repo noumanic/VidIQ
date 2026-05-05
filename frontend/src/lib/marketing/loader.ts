@@ -1,6 +1,9 @@
-// Server-only: uses node:fs. Don't import from a client component.
-import { promises as fs } from "node:fs";
-import path from "node:path";
+// Server-side loader. Reads from the inlined content module — no fs
+// at runtime, so this works on Vercel / HF Spaces / any host without
+// needing source files outside the deploy root.
+//
+// To refresh after editing a source MD at <repo>/marketing/, run
+// `npm run sync-marketing` (also runs automatically before dev / build).
 
 import {
   parseBudget,
@@ -8,38 +11,14 @@ import {
   parseKeywords,
   parseKpi,
 } from "./parsers";
+import { RAW_MD } from "./content";
 import type { MarketingData } from "./types";
 
-/** Marketing MDs live at `<repo>/marketing/`, one level above the
- *  Next.js app. We try a few candidate roots so this works in dev,
- *  monorepo deploys, and the case where the user copies the folder
- *  inside `frontend/`. */
-const CANDIDATE_ROOTS = [
-  path.join(process.cwd(), "..", "marketing"),
-  path.join(process.cwd(), "marketing"),
-  path.join(process.cwd(), "..", "..", "marketing"),
-];
-
-async function readMd(filename: string): Promise<string | null> {
-  for (const root of CANDIDATE_ROOTS) {
-    const full = path.join(root, filename);
-    try {
-      const txt = await fs.readFile(full, "utf8");
-      if (txt) return txt;
-    } catch {
-      // try next root
-    }
-  }
-  return null;
-}
-
 export async function loadMarketingData(): Promise<MarketingData> {
-  const [kpiMd, budgetMd, competitiveMd, keywordsMd] = await Promise.all([
-    readMd("11-kpi-tracker.md"),
-    readMd("09-budget.md"),
-    readMd("10-competitive-analysis.md"),
-    readMd("06-keyword-research.md"),
-  ]);
+  const kpiMd = RAW_MD["11-kpi-tracker.md"];
+  const budgetMd = RAW_MD["09-budget.md"];
+  const competitiveMd = RAW_MD["10-competitive-analysis.md"];
+  const keywordsMd = RAW_MD["06-keyword-research.md"];
 
   const missing: string[] = [];
   if (!kpiMd) missing.push("11-kpi-tracker.md");

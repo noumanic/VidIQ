@@ -7,6 +7,7 @@ import { TopNav } from "@/components/layout/top-nav";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { OnboardingTour, ReopenTourButton } from "@/components/layout/onboarding-tour";
 import { NavigationProgress } from "@/components/layout/nav-progress";
+import { LandingSplash } from "@/components/fx/landing-splash";
 import { SiteJsonLd } from "@/components/fx/seo-jsonld";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
@@ -153,6 +154,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </footer>
           </div>
+          <LandingSplash />
           <CommandPalette />
           <OnboardingTour />
           <ThemedToaster />
