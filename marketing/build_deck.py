@@ -44,7 +44,61 @@ BODY = "Inter"
 MONO = "JetBrains Mono"
 
 
+# ── Asset paths ────────────────────────────────────────────────────────────
+
+ASSETS = Path(__file__).resolve().parent / "assets"
+SHOTS = ASSETS / "screenshots"
+FIREFLY = ASSETS / "firefly"
+VIDEO = ASSETS / "video-ad"
+
+
+def asset(*names: str) -> Path | None:
+    """Return the first path that exists for any of the given names."""
+    for n in names:
+        for root in (SHOTS, FIREFLY, VIDEO):
+            p = root / n
+            if p.exists():
+                return p
+    return None
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────
+
+
+def add_image(slide, src: Path, *, left, top, width=None, height=None,
+              border_color=None, border_pt=1.0):
+    """Place an image on the slide. Adds a thin tinted frame so screenshots
+    don't float in space against the dark background."""
+    if not src or not src.exists():
+        # Drop a placeholder card if asset missing
+        ph = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, left, top,
+            width or Inches(2), height or Inches(2),
+        )
+        ph.fill.solid()
+        ph.fill.fore_color.rgb = BG_CARD
+        ph.line.color.rgb = ACCENT_FUCHSIA
+        ph.line.width = Pt(0.75)
+        ph.adjustments[0] = 0.05
+        tf = ph.text_frame
+        tf.margin_left = Inches(0.15)
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        r = p.add_run()
+        r.text = f"missing\n{src.name if src else '?'}"
+        r.font.name = MONO
+        r.font.size = Pt(9)
+        r.font.color.rgb = ACCENT_FUCHSIA
+        return ph
+
+    pic = slide.shapes.add_picture(
+        str(src), left, top,
+        width=width, height=height,
+    )
+    if border_color is not None:
+        pic.line.color.rgb = border_color
+        pic.line.width = Pt(border_pt)
+    return pic
 
 
 def add_blank_slide(prs: Presentation):
@@ -173,37 +227,184 @@ def set_notes(slide, text):
 def slide_1_cover(prs):
     s = add_blank_slide(prs)
 
-    # Aurora-ish glow shape (one big rounded rect, soft tint via 70% transparency simulated with colour)
-    glow = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(-2), Inches(-2), Inches(10), Inches(10))
-    glow.fill.solid()
-    glow.fill.fore_color.rgb = RGBColor(0x2A, 0x10, 0x4A)
-    glow.line.fill.background()
+    # ── Layered aurora glows (top-left + bottom-right) ────────────────
+    glow_a = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(-3.5), Inches(-3.5),
+                                Inches(8), Inches(8))
+    glow_a.fill.solid()
+    glow_a.fill.fore_color.rgb = RGBColor(0x33, 0x12, 0x55)
+    glow_a.line.fill.background()
 
-    # Wordmark
+    glow_b = s.shapes.add_shape(MSO_SHAPE.OVAL, Inches(8.5), Inches(4),
+                                Inches(7), Inches(7))
+    glow_b.fill.solid()
+    glow_b.fill.fore_color.rgb = RGBColor(0x44, 0x18, 0x55)
+    glow_b.line.fill.background()
+
+    # Subtle grid stripes (top-left to bottom-right diagonal feel)
+    for i, y_off in enumerate([0.5, 1.6, 2.7, 5.5, 6.4, 7.0]):
+        stripe = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                                    Inches(0), Inches(y_off),
+                                    SLIDE_W, Inches(0.005))
+        stripe.fill.solid()
+        stripe.fill.fore_color.rgb = RGBColor(0x44, 0x33, 0x55)
+        stripe.line.fill.background()
+
+    # ── Eyebrow tag, top of slide ─────────────────────────────────────
+    eyebrow_card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                      Inches(5.42), Inches(0.52),
+                                      Inches(2.5), Inches(0.34))
+    eyebrow_card.fill.solid()
+    eyebrow_card.fill.fore_color.rgb = RGBColor(0x1F, 0x12, 0x3A)
+    eyebrow_card.line.color.rgb = ACCENT_VIOLET
+    eyebrow_card.line.width = Pt(0.5)
+    eyebrow_card.adjustments[0] = 0.5
+    add_text(s, "SEMESTER COURSE PROJECT",
+             left=Inches(5.42), top=Inches(0.55), width=Inches(2.5), height=Inches(0.3),
+             size=8, bold=True, font=BODY, color=ACCENT_VIOLET, align=PP_ALIGN.CENTER)
+
+    # ── Wordmark ──────────────────────────────────────────────────────
     add_text(s, "VidIQ",
-             left=Inches(0), top=Inches(2.4), width=SLIDE_W, height=Inches(1.6),
-             size=110, bold=True, font=DISPLAY, color=FG_HIGH, align=PP_ALIGN.CENTER, line_spacing=1)
-    # Accent bar
-    bar = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
-                             Inches(5.92), Inches(4.0), Inches(1.5), Inches(0.08))
-    bar.fill.solid()
-    bar.fill.fore_color.rgb = ACCENT_FUCHSIA
-    bar.line.fill.background()
+             left=Inches(0), top=Inches(1.05), width=SLIDE_W, height=Inches(1.6),
+             size=128, bold=True, font=DISPLAY, color=FG_HIGH,
+             align=PP_ALIGN.CENTER, line_spacing=1)
 
+    # Triple-segment accent bar (violet · fuchsia · cyan) under wordmark
+    seg_w = 0.8
+    total_w = seg_w * 3 + 0.06 * 2
+    start_x = (SLIDE_W.inches - total_w) / 2
+    for i, c in enumerate([ACCENT_VIOLET, ACCENT_FUCHSIA, ACCENT_CYAN]):
+        bar = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                                 Inches(start_x + i * (seg_w + 0.06)), Inches(2.78),
+                                 Inches(seg_w), Inches(0.08))
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = c
+        bar.line.fill.background()
+
+    # Subtitle + tagline
     add_text(s, "AI Video Intelligence",
-             left=Inches(0), top=Inches(4.15), width=SLIDE_W, height=Inches(0.5),
+             left=Inches(0), top=Inches(2.95), width=SLIDE_W, height=Inches(0.5),
              size=22, bold=True, font=DISPLAY, color=ACCENT_VIOLET, align=PP_ALIGN.CENTER)
-
     add_text(s, "Watch less. Learn more.",
-             left=Inches(0), top=Inches(4.85), width=SLIDE_W, height=Inches(0.5),
-             size=18, font=BODY, color=FG_MID, align=PP_ALIGN.CENTER)
+             left=Inches(0), top=Inches(3.45), width=SLIDE_W, height=Inches(0.5),
+             size=16, font=BODY, color=FG_MID, align=PP_ALIGN.CENTER)
 
-    add_text(s, "https://vidiq-two.vercel.app",
-             left=Inches(0), top=Inches(6.2), width=SLIDE_W, height=Inches(0.4),
-             size=12, font=MONO, color=ACCENT_CYAN, align=PP_ALIGN.CENTER)
+    # ── Team panel (left) + Course panel (right) ──────────────────────
+    panel_y = Inches(4.25)
+    panel_h = Inches(2.4)
 
-    set_notes(s, "Open with the hook from the ad: 'You hit play on a 90-min video and walked away three minutes later.' "
-                 "Quick pause, then click into the live demo. Time: 30 seconds.")
+    # Team — left card
+    team_card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                   Inches(1.0), panel_y,
+                                   Inches(6.0), panel_h)
+    team_card.fill.solid()
+    team_card.fill.fore_color.rgb = BG_CARD
+    team_card.line.color.rgb = ACCENT_VIOLET
+    team_card.line.width = Pt(0.75)
+    team_card.adjustments[0] = 0.05
+
+    add_text(s, "GROUP MEMBERS",
+             left=Inches(1.3), top=panel_y + Inches(0.18),
+             width=Inches(5.4), height=Inches(0.28),
+             size=10, bold=True, font=BODY, color=ACCENT_VIOLET)
+
+    members = [
+        ("22i-1653", "Insharah Aman"),
+        ("21i-0416", "M. Nouman Hafeez"),
+        ("21i-0484", "Shayan Khan"),
+        ("21i-2507", "Muhammad Zain"),
+        ("22i-1200", "Farhan Ahmed"),
+    ]
+    for i, (rno, name) in enumerate(members):
+        y = panel_y + Inches(0.55 + i * 0.36)
+        # roll number badge
+        add_text(s, rno,
+                 left=Inches(1.3), top=y, width=Inches(1.4), height=Inches(0.32),
+                 size=11, bold=True, font=MONO, color=ACCENT_CYAN)
+        # name
+        add_text(s, name,
+                 left=Inches(2.8), top=y, width=Inches(3.9), height=Inches(0.32),
+                 size=14, font=BODY, color=FG_HIGH)
+
+    # Course — right card
+    course_card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                     Inches(7.3), panel_y,
+                                     Inches(5.0), panel_h)
+    course_card.fill.solid()
+    course_card.fill.fore_color.rgb = BG_CARD
+    course_card.line.color.rgb = ACCENT_FUCHSIA
+    course_card.line.width = Pt(0.75)
+    course_card.adjustments[0] = 0.05
+
+    add_text(s, "COURSE",
+             left=Inches(7.6), top=panel_y + Inches(0.18),
+             width=Inches(4.5), height=Inches(0.28),
+             size=10, bold=True, font=BODY, color=ACCENT_FUCHSIA)
+
+    course_rows = [
+        ("Course",     "Digital Marketing"),
+        ("Section",    "CS-A"),
+        ("Instructor", "Sir Maaz Zafar Cheema"),
+        ("Project",    "Semester Course Project"),
+    ]
+    for i, (label, value) in enumerate(course_rows):
+        y = panel_y + Inches(0.55 + i * 0.42)
+        add_text(s, label.upper(),
+                 left=Inches(7.6), top=y, width=Inches(1.3), height=Inches(0.3),
+                 size=9, bold=True, font=BODY, color=FG_LOW)
+        add_text(s, value,
+                 left=Inches(8.95), top=y - Inches(0.02),
+                 width=Inches(3.3), height=Inches(0.34),
+                 size=14, bold=(label == "Project"), font=DISPLAY if label == "Project" else BODY,
+                 color=FG_HIGH if label == "Project" else FG_HIGH)
+
+    # ── Bottom URL pill (centered) ────────────────────────────────────
+    url_pill = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                  Inches(4.42), Inches(7.0),
+                                  Inches(4.5), Inches(0.4))
+    url_pill.fill.solid()
+    url_pill.fill.fore_color.rgb = RGBColor(0x1F, 0x12, 0x3A)
+    url_pill.line.color.rgb = ACCENT_CYAN
+    url_pill.line.width = Pt(0.6)
+    url_pill.adjustments[0] = 0.5
+    add_text(s, "🔗  vidiq-two.vercel.app",
+             left=Inches(4.42), top=Inches(7.05), width=Inches(4.5), height=Inches(0.32),
+             size=12, font=MONO, color=ACCENT_CYAN, align=PP_ALIGN.CENTER, bold=True)
+
+    # ── Decorative floating orbs (small, on the diagonals) ────────────
+    for cx, cy, dia, col in [
+        (0.6, 0.6, 0.18, ACCENT_VIOLET),
+        (12.6, 0.5, 0.12, ACCENT_FUCHSIA),
+        (0.4, 6.95, 0.14, ACCENT_CYAN),
+        (12.7, 7.05, 0.16, ACCENT_VIOLET),
+    ]:
+        orb = s.shapes.add_shape(MSO_SHAPE.OVAL,
+                                 Inches(cx - dia / 2), Inches(cy - dia / 2),
+                                 Inches(dia), Inches(dia))
+        orb.fill.solid()
+        orb.fill.fore_color.rgb = col
+        orb.line.fill.background()
+
+    # ── Apply a slide-level fade transition (XML insertion) ───────────
+    try:
+        from lxml import etree
+        from pptx.oxml.ns import qn
+        s_elem = s.element
+        # PPTX transition XML
+        trans_xml = (
+            '<p:transition xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+            'spd="med">'
+            '<p:fade/>'
+            '</p:transition>'
+        )
+        trans = etree.fromstring(trans_xml)
+        s_elem.append(trans)
+    except Exception:
+        pass
+
+    set_notes(s,
+        "Open with the hook from the ad: 'You hit play on a 90-min video and walked away three "
+        "minutes later.' Pause. Introduce the team in one breath, then click straight to slide 2. "
+        "Time: 30 seconds.")
     return s
 
 
@@ -365,8 +566,19 @@ def slide_5_brand(prs):
              left=Inches(7), top=Inches(5.5), width=Inches(6), height=Inches(0.3),
              size=11, font=BODY, color=FG_LOW)
 
-    add_text(s, "Brand consistency audit: applied across 7 surfaces (favicon · top-nav · hero · OG card · JSON-LD · 4 page meta titles).  See 01-brand-guide.md §8.",
-             left=Inches(0.7), top=Inches(6.55), width=Inches(12), height=Inches(0.5),
+    # Brand-applied-in-the-wild proof: FB cover sample
+    cover = asset("IMG-8.png")
+    if cover:
+        add_image(s, cover,
+                  left=Inches(7.5), top=Inches(5.95),
+                  width=Inches(5.15), height=Inches(0.85),
+                  border_color=ACCENT_VIOLET, border_pt=0.75)
+        add_text(s, "FB cover · brand applied in the wild",
+                 left=Inches(7.5), top=Inches(6.85), width=Inches(5.15), height=Inches(0.25),
+                 size=9, font=MONO, color=FG_LOW, align=PP_ALIGN.CENTER)
+
+    add_text(s, "Brand consistency: applied across 7 surfaces (favicon · top-nav · hero · OG card · JSON-LD · meta · cover).",
+             left=Inches(0.7), top=Inches(6.55), width=Inches(6.5), height=Inches(0.5),
              size=10, font=BODY, color=FG_MID)
 
     set_notes(s, "Why violet, not blue (default SaaS): blue is the consultancy default — violet retains the trust association "
@@ -405,184 +617,301 @@ def slide_6_ad(prs):
                  left=x + Inches(0.18), top=y + Inches(1.05), width=box_w - Inches(0.4), height=Inches(1),
                  size=12, font=BODY, color=FG_MID, line_spacing=1.3)
 
-    add_text(s, "[ Embed video here · drop the 30-second master cut once filmed ]",
-             left=Inches(0.7), top=Inches(5.4), width=Inches(12), height=Inches(0.5),
-             size=14, font=MONO, color=ACCENT_VIOLET, align=PP_ALIGN.CENTER)
+    # ── Embed the 30s video (auto-rendered as a movie shape) ─────────
+    video_file = asset("video_ad.mp4")
+    poster = asset("IMG-8.png")  # static frame shown before play
+    video_left = Inches(4.65)
+    video_top = Inches(5.1)
+    video_w = Inches(4.0)
+    video_h = Inches(2.25)  # 16:9 default poster
+
+    if video_file:
+        try:
+            s.shapes.add_movie(
+                str(video_file),
+                video_left, video_top, video_w, video_h,
+                poster_frame_image=str(poster) if poster else None,
+                mime_type="video/mp4",
+            )
+        except Exception:
+            # Fallback — link the video as a text reference if embedding fails
+            add_text(s, "▶  video_ad.mp4 (in marketing/assets/video-ad/) — open from PowerPoint to play",
+                     left=video_left, top=video_top, width=video_w, height=video_h,
+                     size=12, font=MONO, color=ACCENT_VIOLET, align=PP_ALIGN.CENTER)
+    else:
+        add_text(s, "[ video missing — re-export and place in marketing/assets/video-ad/video_ad.mp4 ]",
+                 left=video_left, top=video_top, width=video_w, height=video_h,
+                 size=12, font=MONO, color=ACCENT_FUCHSIA, align=PP_ALIGN.CENTER)
+
     add_text(s, "Cutdowns:  30s master · 15s social · 6s bumper · 10s in-stream",
-             left=Inches(0.7), top=Inches(6.3), width=Inches(12), height=Inches(0.4),
+             left=Inches(0.7), top=Inches(6.95), width=Inches(12), height=Inches(0.4),
              size=11, font=BODY, color=FG_LOW, align=PP_ALIGN.CENTER)
 
-    set_notes(s, "Embed the actual MP4 here once filmed. Auto-play on click. Pause on transition to slide 7. "
-                 "Time: 35 seconds (the ad runs).")
+    set_notes(s, "Click the video to play it during presentation. The story-arc strip above stays "
+                 "as a visual reference for the structure. Time: 35 seconds (the ad runs).")
 
 
 def slide_7_social(prs):
     s = add_blank_slide(prs)
-    add_header(s, "Pillar 2 · Social", "14-day calendar across Facebook + Instagram.", accent=ACCENT_CYAN)
+    add_header(s, "Pillar 2 · Social", "14-day calendar · FB Page · IG Business.", accent=ACCENT_CYAN)
     add_footer(s, "Pillar 2 · Social calendar")
 
-    # Stat row
-    stats = [
-        ("28", "posts queued"),
-        ("4", "content formats"),
-        ("7×", "weekly cadence"),
-        ("2", "channels"),
-    ]
+    # Stat row at top — KPI #5 + #6 evidence numbers
+    stats = [("28", "posts queued"), ("4", "formats"), ("7×", "weekly cadence"), ("2", "channels")]
     for i, (n, lbl) in enumerate(stats):
-        x = Inches(0.7 + i * 3.1)
-        add_card(s, left=x, top=Inches(2.4), width=Inches(2.85), height=Inches(1.4), accent=ACCENT_CYAN)
+        x = Inches(0.7 + i * 1.65)
+        add_card(s, left=x, top=Inches(2.4), width=Inches(1.5), height=Inches(1.05), accent=ACCENT_CYAN)
         add_text(s, n,
-                 left=x, top=Inches(2.55), width=Inches(2.85), height=Inches(0.7),
-                 size=42, bold=True, font=DISPLAY, color=ACCENT_CYAN, align=PP_ALIGN.CENTER)
+                 left=x, top=Inches(2.5), width=Inches(1.5), height=Inches(0.55),
+                 size=28, bold=True, font=DISPLAY, color=ACCENT_CYAN, align=PP_ALIGN.CENTER)
         add_text(s, lbl.upper(),
-                 left=x, top=Inches(3.25), width=Inches(2.85), height=Inches(0.4),
-                 size=11, font=BODY, color=FG_MID, align=PP_ALIGN.CENTER)
+                 left=x, top=Inches(3.05), width=Inches(1.5), height=Inches(0.3),
+                 size=9, font=BODY, color=FG_MID, align=PP_ALIGN.CENTER)
 
-    # Format chips
+    # Format chips on right of stat row
     add_text(s, "FORMATS",
-             left=Inches(0.7), top=Inches(4.2), width=Inches(5), height=Inches(0.3),
+             left=Inches(7.3), top=Inches(2.4), width=Inches(5), height=Inches(0.3),
              size=10, bold=True, font=BODY, color=FG_LOW)
     formats = ["Reels", "Carousels", "Single image", "Stories"]
     for i, f in enumerate(formats):
-        add_chip(s, f, left=Inches(0.7 + i * 1.65), top=Inches(4.55), width=Inches(1.5),
-                 accent=ACCENT_CYAN)
+        add_chip(s, f, left=Inches(7.3 + (i % 2) * 1.55), top=Inches(2.7 + (i // 2) * 0.4),
+                 width=Inches(1.45), accent=ACCENT_CYAN)
 
-    add_text(s, "[ Screenshot of Meta Business Suite Planner with all 28 posts visible ]",
-             left=Inches(0.7), top=Inches(5.4), width=Inches(12), height=Inches(0.5),
-             size=14, font=MONO, color=ACCENT_VIOLET, align=PP_ALIGN.CENTER)
-    add_text(s, "All copy in 03-content-calendar.md.  Captions tone-matched to brand voice.",
-             left=Inches(0.7), top=Inches(6.4), width=Inches(12), height=Inches(0.4),
-             size=11, font=BODY, color=FG_LOW, align=PP_ALIGN.CENTER)
+    # Three real screenshots: Planner left (large), FB page top-right, IG welcome bottom-right
+    planner = asset("planner-calendar.png")
+    fb_page = asset("fb-page.png")
+    fb_welcome = asset("fb-welcome-post.png")
+    ig_welcome = asset("insta-welcome-post.jpeg", "insta-welcome-post.png")
 
-    set_notes(s, "Mention KPI #5 (14/14 days covered) and KPI #6 (4 formats — exceeds 3+ requirement). "
+    # Planner — large left panel
+    add_text(s, "BUSINESS SUITE PLANNER · 28 POSTS QUEUED",
+             left=Inches(0.7), top=Inches(3.65), width=Inches(6.5), height=Inches(0.25),
+             size=9, bold=True, font=BODY, color=ACCENT_CYAN)
+    add_image(s, planner,
+              left=Inches(0.7), top=Inches(3.95), width=Inches(6.5), height=Inches(2.95),
+              border_color=ACCENT_CYAN, border_pt=1)
+
+    # FB page — top right
+    add_text(s, "FB PAGE",
+             left=Inches(7.3), top=Inches(3.65), width=Inches(2.6), height=Inches(0.25),
+             size=9, bold=True, font=BODY, color=ACCENT_VIOLET)
+    add_image(s, fb_page,
+              left=Inches(7.3), top=Inches(3.95), width=Inches(2.6), height=Inches(1.4),
+              border_color=ACCENT_VIOLET, border_pt=1)
+
+    # FB welcome post + IG welcome post stacked
+    add_text(s, "FB PINNED",
+             left=Inches(7.3), top=Inches(5.45), width=Inches(2.6), height=Inches(0.25),
+             size=9, bold=True, font=BODY, color=ACCENT_FUCHSIA)
+    add_image(s, fb_welcome,
+              left=Inches(7.3), top=Inches(5.7), width=Inches(2.6), height=Inches(1.2),
+              border_color=ACCENT_FUCHSIA, border_pt=1)
+
+    add_text(s, "IG PROFILE + WELCOME",
+             left=Inches(10.1), top=Inches(3.65), width=Inches(2.55), height=Inches(0.25),
+             size=9, bold=True, font=BODY, color=ACCENT_FUCHSIA)
+    add_image(s, ig_welcome,
+              left=Inches(10.1), top=Inches(3.95), width=Inches(2.55), height=Inches(2.95),
+              border_color=ACCENT_FUCHSIA, border_pt=1)
+
+    add_text(s, "Captions, hashtag stacks & Story rotation in 03-content-calendar.md & 05-social-templates.md",
+             left=Inches(0.7), top=Inches(7.0), width=Inches(12), height=Inches(0.3),
+             size=10, font=BODY, color=FG_LOW, align=PP_ALIGN.CENTER)
+
+    set_notes(s, "Land KPI #5 (14/14 days), KPI #6 (4 formats — exceeds 3+) and KPI #9 setup right here. "
+                 "The Planner screenshot is the rubric evidence; FB+IG screenshots show the live identities. "
                  "Time: 45 seconds.")
 
 
 def slide_8_meta_ads(prs):
     s = add_blank_slide(prs)
-    add_header(s, "Pillar 2 · Meta Ads", "$280 / 14 days · 4 ad sets · 6 creatives.", accent=ACCENT_CYAN)
+    add_header(s, "Pillar 2 · Meta Ads", "$280 / 14 days · 4 ad sets · 6 creatives · all built to Review.", accent=ACCENT_CYAN)
     add_footer(s, "Pillar 2 · Meta Ads")
 
+    # 4 actual Ads Manager Review screenshots in 2x2 grid
     sets = [
-        ("Ad Set 1", "Students", "South Asia · 18-26 · cramming, study, exam", ACCENT_VIOLET, "$70"),
-        ("Ad Set 2", "Creators", "Global EN · 22-35 · YT, Substack, Notion", ACCENT_FUCHSIA, "$70"),
-        ("Ad Set 3", "Knowledge workers", "US/EU · 28-50 · MBAs, consultants, PMs", ACCENT_CYAN, "$70"),
-        ("Ad Set 4", "Retargeting", "Site visitors · 7-day · 4× ROAS expected", ACCENT_EMERALD, "$70"),
+        ("Ad Set 1 · Students", "meta-ad-set-1-students.png", ACCENT_VIOLET),
+        ("Ad Set 2 · Creators", "meta-ad-set-2-creators.png", ACCENT_FUCHSIA),
+        ("Ad Set 3 · Knowledge Workers", "meta-ad-set-3-knowledge.png", ACCENT_CYAN),
+        ("Ad Set 4 · Retargeting", "meta-ad-set-4-retarget.png", ACCENT_EMERALD),
     ]
-    for i, (lbl, name, body, accent, budget) in enumerate(sets):
+
+    cell_w = Inches(5.85)
+    cell_h = Inches(2.15)
+    label_h = Inches(0.3)
+
+    for i, (label, fname, accent) in enumerate(sets):
         col = i % 2
         row = i // 2
         x = Inches(0.7 + col * 6.2)
-        y = Inches(2.5 + row * 2)
-        add_card(s, left=x, top=y, width=Inches(5.8), height=Inches(1.8), accent=accent)
-        add_text(s, lbl,
-                 left=x + Inches(0.3), top=y + Inches(0.18), width=Inches(2), height=Inches(0.3),
-                 size=10, font=MONO, color=accent, bold=True)
-        add_text(s, budget,
-                 left=x + Inches(4.2), top=y + Inches(0.18), width=Inches(1.4), height=Inches(0.4),
-                 size=18, bold=True, font=DISPLAY, color=accent, align=PP_ALIGN.RIGHT)
-        add_text(s, name,
-                 left=x + Inches(0.3), top=y + Inches(0.55), width=Inches(5.2), height=Inches(0.5),
-                 size=18, bold=True, font=DISPLAY, color=FG_HIGH)
-        add_text(s, body,
-                 left=x + Inches(0.3), top=y + Inches(1.05), width=Inches(5.2), height=Inches(0.7),
-                 size=12, font=BODY, color=FG_MID, line_spacing=1.3)
+        y = Inches(2.45 + row * (cell_h + label_h + Inches(0.15) / Inches(1)))
+        # Compute y manually so it's consistent
+        y = Inches(2.45 + row * 2.55)
 
-    add_text(s, "Strategy → 04-meta-ads-plan.md  ·  Each ad set screenshotted from Ads Manager 'Review' page.",
-             left=Inches(0.7), top=Inches(6.65), width=Inches(12), height=Inches(0.4),
-             size=11, font=BODY, color=FG_LOW, align=PP_ALIGN.CENTER)
+        add_text(s, label,
+                 left=x, top=y, width=cell_w, height=label_h,
+                 size=11, bold=True, font=BODY, color=accent)
+        add_image(s, asset(fname),
+                  left=x, top=y + label_h,
+                  width=cell_w, height=cell_h,
+                  border_color=accent, border_pt=1)
 
-    set_notes(s, "Showcase mode: campaigns built to Review screen, screenshotted, never published — $0 spend. "
-                 "Time: 55 seconds.")
+    add_text(s, "Built in Ads Manager up to Review · saved as Draft · never published. $0 actual spend.",
+             left=Inches(0.7), top=Inches(7.0), width=Inches(12), height=Inches(0.3),
+             size=10, font=BODY, color=FG_LOW, align=PP_ALIGN.CENTER)
+
+    set_notes(s, "Showcase mode: 4 ad sets each with full Review-page screenshot. KPI #7 (Meta Ads "
+                 "Strategy Completeness) and KPI #8 (Audience Definition Quality) — both Strong. Time: 55 seconds.")
 
 
 def slide_9_conversation(prs):
     s = add_blank_slide(prs)
-    add_header(s, "Pillar 2 · Always-on", "Welcome, auto-reply, comment management.", accent=ACCENT_CYAN)
+    add_header(s, "Pillar 2 · Always-on", "Welcome · away · FAQ · saved replies — KPI #9 evidence.", accent=ACCENT_CYAN)
     add_footer(s, "Pillar 2 · Templates")
 
-    # Two cards side-by-side
-    add_card(s, left=Inches(0.7), top=Inches(2.5), width=Inches(5.8), height=Inches(3.5), accent=ACCENT_CYAN)
-    add_text(s, "WELCOME MESSAGE",
-             left=Inches(1), top=Inches(2.7), width=Inches(5.2), height=Inches(0.3),
-             size=10, bold=True, font=BODY, color=ACCENT_CYAN)
-    add_text(s,
-             "Hey 👋 thanks for stopping by VidIQ.\n\n"
-             "We turn any YouTube link into a transcript, time-stamped summary "
-             "and grounded Q&A — in seconds.\n\n"
-             "Try it free: vidiq-two.vercel.app",
-             left=Inches(1), top=Inches(3.05), width=Inches(5.2), height=Inches(2.8),
-             size=12, font=BODY, color=FG_HIGH, line_spacing=1.5)
+    # 4 real screenshots from Business Suite Inbox / Automations
+    items = [
+        ("Greeting · DM welcome",       "auto-greeting.png",   ACCENT_VIOLET),
+        ("Away message · outside hours", "auto-away.png",       ACCENT_FUCHSIA),
+        ("FAQ shortcuts (5 set up)",    "auto-faq.png",        ACCENT_CYAN),
+        ("Saved replies (5 templates)", "saved-replies.png",   ACCENT_EMERALD),
+    ]
 
-    add_card(s, left=Inches(6.85), top=Inches(2.5), width=Inches(5.8), height=Inches(3.5), accent=ACCENT_FUCHSIA)
-    add_text(s, "AUTO-REPLY (KEYWORD: PRICING)",
-             left=Inches(7.15), top=Inches(2.7), width=Inches(5.2), height=Inches(0.3),
-             size=10, bold=True, font=BODY, color=ACCENT_FUCHSIA)
-    add_text(s,
-             "VidIQ is free during launch.\n\n"
-             "Free tier: unlimited 10-min videos · grounded chat · live "
-             "stream summaries.\n\n"
-             "No card. No catch. Try it: vidiq-two.vercel.app",
-             left=Inches(7.15), top=Inches(3.05), width=Inches(5.2), height=Inches(2.8),
-             size=12, font=BODY, color=FG_HIGH, line_spacing=1.5)
+    cell_w = Inches(5.85)
+    cell_h = Inches(2.15)
 
-    add_text(s, "[ Screenshot Business Suite welcome + auto-reply config — KPI #9 evidence ]",
-             left=Inches(0.7), top=Inches(6.4), width=Inches(12), height=Inches(0.4),
-             size=11, font=MONO, color=ACCENT_VIOLET, align=PP_ALIGN.CENTER)
+    for i, (label, fname, accent) in enumerate(items):
+        col = i % 2
+        row = i // 2
+        x = Inches(0.7 + col * 6.2)
+        y = Inches(2.45 + row * 2.55)
 
-    set_notes(s, "Templates from 05-social-templates.md. Configure in Business Suite, screenshot once configured. "
-                 "Time: 30 seconds.")
+        add_text(s, label,
+                 left=x, top=y, width=cell_w, height=Inches(0.3),
+                 size=11, bold=True, font=BODY, color=accent)
+        add_image(s, asset(fname),
+                  left=x, top=y + Inches(0.3),
+                  width=cell_w, height=cell_h,
+                  border_color=accent, border_pt=1)
+
+    add_text(s, "All four screenshots above = full evidence trail for KPI #9 (Automated Message / Welcome Note).",
+             left=Inches(0.7), top=Inches(7.0), width=Inches(12), height=Inches(0.3),
+             size=10, font=BODY, color=FG_LOW, align=PP_ALIGN.CENTER)
+
+    set_notes(s, "All four screens come from Business Suite → Inbox → Automated Responses + Saved Replies. "
+                 "Show them quickly, emphasise the always-on conversational layer means leads never wait. Time: 30 seconds.")
+
+
+def _kpi_color(score: int):
+    if score >= 4:
+        return ACCENT_EMERALD
+    if score == 3:
+        return ACCENT_AMBER
+    return RGBColor(0xF4, 0x3F, 0x5E)
 
 
 def slide_10_keywords(prs):
     s = add_blank_slide(prs)
-    add_header(s, "Pillar 4 · SEO", "18-keyword strategy · long-tail-first.", accent=ACCENT_AMBER)
+    add_header(s, "Pillar 4 · SEO", "Full 18-keyword strategy · long-tail-first · per page mapping.", accent=ACCENT_AMBER)
     add_footer(s, "Pillar 4 · Keyword research")
 
-    # Stats
+    # ── Top-row stats (compact)
     stats = [
         ("18", "total KWs", ACCENT_AMBER),
-        ("5", "short-tail head", ACCENT_FUCHSIA),
-        ("13", "long-tail", ACCENT_EMERALD),
-        ("21.8", "avg KD (low)", ACCENT_CYAN),
+        ("5", "short-tail",  ACCENT_FUCHSIA),
+        ("13", "long-tail",   ACCENT_EMERALD),
+        ("21.8", "avg KD",      ACCENT_CYAN),
     ]
     for i, (n, lbl, c) in enumerate(stats):
-        x = Inches(0.7 + i * 3.1)
-        add_card(s, left=x, top=Inches(2.4), width=Inches(2.85), height=Inches(1.3), accent=c)
-        add_text(s, n,
-                 left=x, top=Inches(2.5), width=Inches(2.85), height=Inches(0.65),
-                 size=36, bold=True, font=DISPLAY, color=c, align=PP_ALIGN.CENTER)
-        add_text(s, lbl.upper(),
-                 left=x, top=Inches(3.15), width=Inches(2.85), height=Inches(0.3),
-                 size=10, font=BODY, color=FG_MID, align=PP_ALIGN.CENTER)
+        x = Inches(0.5 + i * 1.55)
+        add_card(s, left=x, top=Inches(2.32), width=Inches(1.4), height=Inches(0.85), accent=c)
+        add_text(s, n, left=x, top=Inches(2.4), width=Inches(1.4), height=Inches(0.4),
+                 size=22, bold=True, font=DISPLAY, color=c, align=PP_ALIGN.CENTER)
+        add_text(s, lbl.upper(), left=x, top=Inches(2.85), width=Inches(1.4), height=Inches(0.3),
+                 size=8, font=BODY, color=FG_MID, align=PP_ALIGN.CENTER)
 
-    # Highlight 3 strategic KWs
+    # ── Full keyword table (18 rows) ─────────────────────────────────
     kws = [
-        ("ai video summarizer", "27,100", "KD 48", "/ (home)"),
-        ("summarize a 2 hour youtube video", "2,400", "KD 19", "/analyze"),
-        ("live stream ai summary", "1,600", "KD 24", "/live"),
+        # (#, keyword, type, MSV, KD, CPC, intent, page, in_ads)
+        (1,  "ai video summarizer",                          "Short · Head", "27,100", 48, "1.85", "Commercial",        "/",        True),
+        (2,  "youtube video summarizer",                     "Short · Head", "22,200", 42, "1.40", "Commercial",        "/",        True),
+        (3,  "summarize youtube video",                      "Short",        "18,100", 39, "1.20", "Transactional",     "/analyze", True),
+        (4,  "ai for video transcripts",                     "Short",         "4,400", 31, "0.90", "Informational",     "/analyze", True),
+        (5,  "live stream ai summary",                       "Short · Niche", "1,600", 24, "1.10", "Commercial",        "/live",    True),
+        (6,  "summarize a 2 hour youtube video",             "Long-tail",     "2,400", 19, "0.75", "Transactional",     "/analyze", True),
+        (7,  "how to summarize a long youtube lecture free", "Long-tail",       "880", 12, "0.55", "Informational",     "/analyze", True),
+        (8,  "best free ai tool to summarize video",         "Long-tail",     "1,900", 22, "1.05", "Commercial",        "/",        True),
+        (9,  "chat with youtube video ai",                   "Long-tail",     "1,300", 18, "1.30", "Transactional",     "/analyze", True),
+        (10, "extract key moments from video ai",            "Long-tail",       "720", 14, "0.85", "Commercial",        "/analyze", True),
+        (11, "ai timestamp summary youtube",                 "Long-tail",       "590", 11, "0.65", "Informational",     "/analyze", False),
+        (12, "youtube live stream transcript real time",     "Long-tail · Niche","480", 16, "0.95", "Commercial",        "/live",    True),
+        (13, "webinar to text ai summary",                   "Long-tail · B2B","1,100", 25, "1.45", "Commercial",        "/live",    True),
+        (14, "study with youtube ai summary",                "Long-tail",       "720", 13, "0.70", "Students",          "/",        True),
+        (15, "summarize trading livestream ai",              "Long-tail · Niche","210",  8, "0.60", "Commercial",        "/live",    False),
+        (16, "medical lecture video summarizer",             "Long-tail · Niche","320", 14, "1.20", "Commercial",        "/analyze", False),
+        (17, "ai video keyframe extraction",                 "Long-tail · Tech","480", 17, "0.95", "Informational",     "/",        False),
+        (18, "ai video to notes converter",                  "Long-tail",     "1,600", 20, "0.90", "Transactional",     "/analyze", True),
     ]
-    add_text(s, "STRATEGIC ANCHORS",
-             left=Inches(0.7), top=Inches(4.1), width=Inches(5), height=Inches(0.3),
-             size=10, bold=True, font=BODY, color=FG_LOW)
-    for i, (kw, msv, kd, page) in enumerate(kws):
-        y = Inches(4.45 + i * 0.7)
-        add_card(s, left=Inches(0.7), top=y, width=Inches(11.95), height=Inches(0.6), accent=ACCENT_AMBER)
-        add_text(s, kw,
-                 left=Inches(0.95), top=y + Inches(0.13), width=Inches(5.5), height=Inches(0.4),
-                 size=14, bold=True, font=BODY, color=FG_HIGH)
-        add_text(s, f"MSV {msv}",
-                 left=Inches(6.5), top=y + Inches(0.13), width=Inches(1.5), height=Inches(0.4),
-                 size=12, font=MONO, color=ACCENT_CYAN)
-        add_text(s, kd,
-                 left=Inches(8.2), top=y + Inches(0.13), width=Inches(1.5), height=Inches(0.4),
-                 size=12, font=MONO, color=ACCENT_EMERALD)
-        add_text(s, page,
-                 left=Inches(10.2), top=y + Inches(0.13), width=Inches(2.4), height=Inches(0.4),
-                 size=12, font=MONO, color=FG_MID, align=PP_ALIGN.RIGHT)
 
-    set_notes(s, "Why long-tail first: domain authority of 1 — head terms unrankable in 14 days. "
-                 "Long-tail KD<15 is achievable per page. Cite 06-keyword-research.md. Time: 50 seconds.")
+    table_y = Inches(3.3)
+    cols_w = [Inches(0.4), Inches(3.5), Inches(1.6), Inches(0.95), Inches(0.75), Inches(0.7), Inches(1.45), Inches(1.2), Inches(0.45)]
+    cols_x = [Inches(0.5)]
+    for w in cols_w[:-1]:
+        cols_x.append(cols_x[-1] + w)
+
+    headers = ["#", "Keyword", "Type", "MSV", "KD", "CPC", "Intent", "Page", "Ads"]
+    # header row
+    for i, h in enumerate(headers):
+        align = PP_ALIGN.LEFT if i in (1, 2, 6, 7) else PP_ALIGN.CENTER
+        add_text(s, h.upper(), left=cols_x[i], top=table_y, width=cols_w[i], height=Inches(0.28),
+                 size=8, bold=True, font=BODY, color=FG_LOW, align=align)
+    # divider
+    div = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                             Inches(0.5), table_y + Inches(0.32),
+                             Inches(11.05), Inches(0.015))
+    div.fill.solid(); div.fill.fore_color.rgb = ACCENT_AMBER; div.line.fill.background()
+
+    # data rows
+    row_h = Inches(0.21)
+    for ri, (n, kw, typ, msv, kd, cpc, intent, page, in_ads) in enumerate(kws):
+        y = table_y + Inches(0.42) + row_h * ri
+        # alternating row tint
+        if ri % 2 == 0:
+            tint = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                                      Inches(0.5), y - Inches(0.02),
+                                      Inches(11.05), row_h)
+            tint.fill.solid(); tint.fill.fore_color.rgb = RGBColor(0x14, 0x0E, 0x1E)
+            tint.line.fill.background()
+
+        kd_color = ACCENT_EMERALD if kd < 15 else (ACCENT_AMBER if kd < 30 else RGBColor(0xF4, 0x3F, 0x5E))
+
+        add_text(s, str(n), left=cols_x[0], top=y, width=cols_w[0], height=row_h,
+                 size=8, font=MONO, color=FG_LOW, align=PP_ALIGN.CENTER)
+        add_text(s, kw, left=cols_x[1], top=y, width=cols_w[1], height=row_h,
+                 size=9, font=BODY, color=FG_HIGH)
+        add_text(s, typ, left=cols_x[2], top=y, width=cols_w[2], height=row_h,
+                 size=8, font=BODY, color=FG_MID)
+        add_text(s, msv, left=cols_x[3], top=y, width=cols_w[3], height=row_h,
+                 size=9, font=MONO, color=ACCENT_CYAN, align=PP_ALIGN.RIGHT)
+        add_text(s, str(kd), left=cols_x[4], top=y, width=cols_w[4], height=row_h,
+                 size=9, bold=True, font=MONO, color=kd_color, align=PP_ALIGN.RIGHT)
+        add_text(s, "$" + cpc, left=cols_x[5], top=y, width=cols_w[5], height=row_h,
+                 size=9, font=MONO, color=FG_MID, align=PP_ALIGN.RIGHT)
+        add_text(s, intent, left=cols_x[6], top=y, width=cols_w[6], height=row_h,
+                 size=8, font=BODY, color=FG_MID)
+        add_text(s, page, left=cols_x[7], top=y, width=cols_w[7], height=row_h,
+                 size=8, font=MONO, color=ACCENT_VIOLET)
+        add_text(s, "✓" if in_ads else "—", left=cols_x[8], top=y, width=cols_w[8], height=row_h,
+                 size=10, bold=True, font=BODY,
+                 color=ACCENT_EMERALD if in_ads else FG_LOW, align=PP_ALIGN.CENTER)
+
+    add_text(s, "KD<15 (green) · KD 15-29 (amber) · KD 30+ (red)  ·  ✓ = also targeted in Google Ads (`08-google-ads-plan.md`)",
+             left=Inches(0.5), top=Inches(7.1), width=Inches(12.5), height=Inches(0.25),
+             size=8, font=BODY, color=FG_LOW, align=PP_ALIGN.CENTER)
+
+    set_notes(s, "All 18 keywords with MSV, KD, CPC, intent, mapped page, and Google Ads inclusion. "
+                 "Highlight: 5 short-tail head terms + 13 long-tail (meets KPI #15). "
+                 "Long-tail-first because DA=1 makes head terms unrankable in 14 days. Time: 60 seconds.")
 
 
 def slide_11_seo(prs):
@@ -626,42 +955,55 @@ def slide_11_seo(prs):
 
 def slide_12_google_ads(prs):
     s = add_blank_slide(prs)
-    add_header(s, "Pillar 4 · Google Ads", "$210 / 14 days · 3 campaigns · conversion-laddered.", accent=ACCENT_AMBER)
+    add_header(s, "Pillar 4 · Google Ads", "$210 / 14 days · 3 campaigns · all built to Review.", accent=ACCENT_AMBER)
     add_footer(s, "Pillar 4 · Google Ads")
 
     campaigns = [
-        ("Search", "Brand cluster", "$70 · 4 ad groups · exact + phrase", ACCENT_VIOLET),
-        ("YouTube In-Stream", "Awareness layer", "$56 · skippable · 30s creative", ACCENT_CYAN),
-        ("Performance Max", "Auto-allocated", "$84 (gated D8) · once 30 conv banked", ACCENT_FUCHSIA),
+        ("Search · Brand Cluster",      "Maximise Conversions · 4 ad groups", "$70 / 14d",  "google-search-review.jpeg",  ACCENT_VIOLET),
+        ("YouTube · In-Stream",         "Target CPM $4 · 30s skippable + 6s",  "$56 / 14d",  "google-youtube-review.jpeg", ACCENT_CYAN),
+        ("Performance Max",              "Maximise Conversion Value · 3 asset groups", "$84 / 14d", "google-pmax-review.jpeg", ACCENT_FUCHSIA),
     ]
-    for i, (name, sub, body, c) in enumerate(campaigns):
-        x = Inches(0.7 + i * 4.15)
-        add_card(s, left=x, top=Inches(2.5), width=Inches(3.85), height=Inches(2.5), accent=c)
-        add_text(s, name,
-                 left=x + Inches(0.25), top=Inches(2.7), width=Inches(3.5), height=Inches(0.5),
-                 size=20, bold=True, font=DISPLAY, color=FG_HIGH)
-        add_text(s, sub,
-                 left=x + Inches(0.25), top=Inches(3.25), width=Inches(3.5), height=Inches(0.4),
-                 size=12, font=BODY, color=c, bold=True)
-        add_text(s, body,
-                 left=x + Inches(0.25), top=Inches(3.7), width=Inches(3.5), height=Inches(1.2),
-                 size=11, font=BODY, color=FG_MID, line_spacing=1.4)
 
-    # Bidding rules
+    cell_w = Inches(4.0)
+    cell_h = Inches(2.6)
+
+    for i, (name, sub, budget, fname, c) in enumerate(campaigns):
+        x = Inches(0.5 + i * 4.2)
+
+        # Title strip
+        add_text(s, name,
+                 left=x, top=Inches(2.4), width=cell_w, height=Inches(0.35),
+                 size=14, bold=True, font=DISPLAY, color=c)
+        add_text(s, sub,
+                 left=x, top=Inches(2.75), width=cell_w, height=Inches(0.3),
+                 size=10, font=BODY, color=FG_MID)
+        add_text(s, budget,
+                 left=x, top=Inches(3.05), width=cell_w, height=Inches(0.25),
+                 size=9, font=MONO, color=c)
+
+        # Real screenshot
+        add_image(s, asset(fname, fname.replace(".jpeg", ".png")),
+                  left=x, top=Inches(3.4),
+                  width=cell_w, height=cell_h,
+                  border_color=c, border_pt=1)
+
+    # Bidding rules below
     add_text(s, "BIDDING + GUARDRAILS",
-             left=Inches(0.7), top=Inches(5.3), width=Inches(5), height=Inches(0.3),
-             size=10, bold=True, font=BODY, color=FG_LOW)
+             left=Inches(0.5), top=Inches(6.2), width=Inches(5), height=Inches(0.25),
+             size=9, bold=True, font=BODY, color=FG_LOW)
     rules = [
-        "Start: Maximise Conversions  →  Switch to Target CPA after 30 conv banked.",
+        "Start: Maximise Conversions  →  Switch to Target CPA $1.50 after 30 conv banked.",
         "Friday negative-keyword sweep: drop terms with > $5 spend, 0 conversions.",
         "PMax gated by conv volume; spare reallocates to Search if it doesn't unlock.",
     ]
     for i, r in enumerate(rules):
         add_text(s, f"·  {r}",
-                 left=Inches(0.7), top=Inches(5.65 + i * 0.32), width=Inches(12), height=Inches(0.3),
-                 size=11, font=BODY, color=FG_MID)
+                 left=Inches(0.5), top=Inches(6.5 + i * 0.27), width=Inches(12.5), height=Inches(0.25),
+                 size=9, font=BODY, color=FG_MID)
 
-    set_notes(s, "Strategy from 08-google-ads-plan.md. Screenshot the Review screen of each campaign. Time: 50 seconds.")
+    set_notes(s, "All three screenshots are from the Review/Summary page in Google Ads (saved as Draft, "
+                 "never published). Strategy from 08-google-ads-plan.md. KPI #17 (Google Ads Strategy "
+                 "Completeness) and KPI #18 (Brand Alignment) — both Strong. Time: 50 seconds.")
 
 
 def slide_13_budget(prs):
@@ -720,64 +1062,369 @@ def slide_13_budget(prs):
                  "DA-1 domain. Creative + influencer is intentionally lean. 09-budget.md has full rationale. Time: 60 seconds.")
 
 
+def _3col_table(s, *, top, headers, rows, col_widths=None,
+                left=Inches(0.5), accent_per_col=None,
+                row_label_w=Inches(2.4), row_h=Inches(0.32),
+                first_col_label=True):
+    """Render a 3-column comparison table with optional first label column.
+
+    `headers` = ['', 'VidIQ', 'NoteGPT', 'Eightify']  (first is label)
+    `rows`    = list of [label, vidiq_val, notegpt_val, eightify_val]
+    `accent_per_col` = [violet, cyan, amber] colours for each entity column header
+    """
+    if accent_per_col is None:
+        accent_per_col = [ACCENT_VIOLET, ACCENT_CYAN, ACCENT_AMBER]
+
+    if col_widths is None:
+        # row label + 3 entity cols
+        ent_w = Inches(3.18)
+        col_widths = [row_label_w, ent_w, ent_w, ent_w]
+
+    # column header strip
+    x = left
+    for ci, h in enumerate(headers):
+        if ci == 0:
+            add_text(s, h.upper() if h else "", left=x, top=top,
+                     width=col_widths[0], height=Inches(0.32),
+                     size=8, bold=True, font=BODY, color=FG_LOW)
+        else:
+            cap = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                     x + Inches(0.05), top,
+                                     col_widths[ci] - Inches(0.1), Inches(0.32))
+            cap.fill.solid()
+            cap.fill.fore_color.rgb = accent_per_col[ci - 1]
+            cap.line.fill.background()
+            cap.adjustments[0] = 0.3
+            tf = cap.text_frame
+            tf.margin_top = Inches(0.04)
+            p = tf.paragraphs[0]
+            p.alignment = PP_ALIGN.CENTER
+            r = p.add_run()
+            r.text = h
+            r.font.name = DISPLAY
+            r.font.size = Pt(11)
+            r.font.bold = True
+            r.font.color.rgb = BG_DEEP
+        x += col_widths[ci]
+
+    # data rows
+    cur_y = top + Inches(0.42)
+    for ri, row in enumerate(rows):
+        # row tint (alternating)
+        if ri % 2 == 0:
+            tint = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                                      left, cur_y - Inches(0.02),
+                                      sum((w.inches for w in col_widths)) * 914400,
+                                      row_h)
+            tint.fill.solid(); tint.fill.fore_color.rgb = RGBColor(0x14, 0x0E, 0x1E)
+            tint.line.fill.background()
+        x = left
+        for ci, val in enumerate(row):
+            color = ACCENT_VIOLET if ci == 0 and first_col_label else FG_HIGH
+            font = BODY
+            size = 9
+            if ci == 0:
+                color = FG_LOW; font = BODY; size = 9
+            add_text(s, str(val),
+                     left=x + Inches(0.08), top=cur_y,
+                     width=col_widths[ci] - Inches(0.16), height=row_h,
+                     size=size, font=font, color=color)
+            x += col_widths[ci]
+        cur_y += row_h
+
+    return cur_y
+
+
 def slide_14_competitive(prs):
+    """Section A — Company overview + Section C — Website/SEO."""
     s = add_blank_slide(prs)
-    add_header(s, "Pillar 5 · Competitive", "VidIQ vs NoteGPT vs Eightify.", accent=ACCENT_EMERALD)
-    add_footer(s, "Pillar 5 · Competitive")
+    add_header(s, "Pillar 5 · Competitive", "Company overview · pricing · website & SEO.", accent=ACCENT_EMERALD)
+    add_footer(s, "Pillar 5 · Competitive — Company & Web")
 
-    # 3-column comparison table
-    cols = [
-        ("VidIQ", ACCENT_VIOLET, ["0 (launch)", "0 (launch)", "Free + paid roadmap", "✓ Live + recorded", "✓ Multimodal grounding", "✓ Domain modes"]),
-        ("NoteGPT", ACCENT_CYAN,  ["~3,100 FB", "~5,800 IG", "Free 5/d → $4.99/mo", "Recorded only", "Text only", "—"]),
-        ("Eightify", ACCENT_AMBER,["~620 FB", "~1,900 IG", "Free 4/d → $4.99/mo", "Recorded only", "Text only", "—"]),
+    # Section A — Company overview
+    add_text(s, "SECTION A · COMPANY OVERVIEW",
+             left=Inches(0.5), top=Inches(2.3), width=Inches(8), height=Inches(0.3),
+             size=10, bold=True, font=BODY, color=ACCENT_EMERALD)
+
+    company_rows = [
+        ("Brand name",       "VidIQ",                                              "NoteGPT",                       "Eightify"),
+        ("Industry",         "AI · Video summarisation SaaS",                      "AI · Video summarisation",      "Chrome extension first"),
+        ("Target audience",  "Students · educators · creators · domain pros",      "Students · knowledge workers",  "Power-YouTube viewers"),
+        ("Value prop",       "Multimodal + grounded citations",                    "Free YT + PDF summariser",      "YouTube summary in 8 sec"),
+        ("Pricing model",    "Free · paid tier roadmap",                           "Free 5/day → $4.99/mo",         "Free 4/day → $4.99/mo"),
+        ("Website",          "vidiq-two.vercel.app",                               "notegpt.io",                    "eightify.app"),
     ]
-    headers = ["", "FACEBOOK", "INSTAGRAM", "PRICING", "FORMATS", "DIFFERENTIATION", "VERTICAL"]
+    end_y = _3col_table(s, top=Inches(2.65),
+                        headers=["ATTRIBUTE", "VidIQ", "NoteGPT", "Eightify"],
+                        rows=company_rows,
+                        accent_per_col=[ACCENT_VIOLET, ACCENT_CYAN, ACCENT_AMBER],
+                        row_label_w=Inches(1.8))
 
-    col_w = Inches(3.85)
-    row_h = Inches(0.5)
-    start_x = Inches(0.7)
-    start_y = Inches(2.4)
-    label_w = Inches(0)  # we'll use the column header row
+    # Section C — Website & SEO
+    add_text(s, "SECTION C · WEBSITE & SEO BASICS",
+             left=Inches(0.5), top=end_y + Inches(0.15), width=Inches(8), height=Inches(0.3),
+             size=10, bold=True, font=BODY, color=ACCENT_EMERALD)
 
-    # Column headers
-    for ci, (name, c, _) in enumerate(cols):
-        x = start_x + col_w * ci + Inches(0.05)
-        hdr = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, start_y, col_w - Inches(0.1), Inches(0.5))
-        hdr.fill.solid()
-        hdr.fill.fore_color.rgb = c
-        hdr.line.fill.background()
-        hdr.adjustments[0] = 0.3
-        tf = hdr.text_frame
-        tf.margin_top = Inches(0.05)
-        p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.CENTER
-        r = p.add_run()
-        r.text = name
-        r.font.name = DISPLAY
-        r.font.size = Pt(16)
-        r.font.bold = True
+    web_rows = [
+        ("Domain Authority",   "1 (new)",                  "~28",                          "~31"),
+        ("Monthly traffic",    "0 (new)",                  "~85,000",                      "~140,000"),
+        ("Top KW #1",          "summarize 2-hr YT video",  "youtube summarizer",           "youtube summary chrome ext"),
+        ("Top KW #2",          "live stream ai summary",   "summarize youtube video",      "eightify (brand)"),
+        ("Top KW #3",          "chat with youtube ai",     "youtube to text",              "youtube ai summary"),
+    ]
+    _3col_table(s, top=end_y + Inches(0.5),
+                headers=["ATTRIBUTE", "VidIQ", "NoteGPT", "Eightify"],
+                rows=web_rows,
+                accent_per_col=[ACCENT_VIOLET, ACCENT_CYAN, ACCENT_AMBER],
+                row_label_w=Inches(1.8))
+
+    set_notes(s, "Section A frames who's playing in this space. Section C exposes the authority gap "
+                 "(DA 1 vs ~30) — that's why long-tail KW strategy in slide 10 is correct. "
+                 "Time: 50 seconds.")
+
+
+def slide_15_competitive_social(prs):
+    """Section B — Social media presence (FB + IG)."""
+    s = add_blank_slide(prs)
+    add_header(s, "Pillar 5 · Competitive", "Social presence · Facebook & Instagram side-by-side.", accent=ACCENT_EMERALD)
+    add_footer(s, "Pillar 5 · Competitive — Social")
+
+    # Facebook block
+    add_text(s, "📘  FACEBOOK",
+             left=Inches(0.5), top=Inches(2.3), width=Inches(6), height=Inches(0.3),
+             size=11, bold=True, font=DISPLAY, color=ACCENT_VIOLET)
+
+    fb_rows = [
+        ("Page handle",        "(to launch)",       "facebook.com/notegpt",  "facebook.com/eightifyapp"),
+        ("Total followers",    "0",                 "~3,100",                "~620"),
+        ("Avg likes/post",     "n/a",               "~12",                   "~4"),
+        ("Posting freq",       "7/wk planned",      "~3/wk",                 "<1/wk"),
+        ("Meta Ad activity",   "Setup phase",       "✓ Active (Q4 2025)",     "✗ Inactive"),
+        ("Tone",               "Confident, calm",   "Functional, feature-led","Casual, meme-adjacent"),
+    ]
+    end_y = _3col_table(s, top=Inches(2.65),
+                       headers=["ATTRIBUTE", "VidIQ", "NoteGPT", "Eightify"],
+                       rows=fb_rows,
+                       accent_per_col=[ACCENT_VIOLET, ACCENT_CYAN, ACCENT_AMBER],
+                       row_label_w=Inches(1.8),
+                       row_h=Inches(0.3))
+
+    # Instagram block
+    add_text(s, "📸  INSTAGRAM",
+             left=Inches(0.5), top=end_y + Inches(0.15), width=Inches(6), height=Inches(0.3),
+             size=11, bold=True, font=DISPLAY, color=ACCENT_FUCHSIA)
+
+    ig_rows = [
+        ("Handle",             "@vidiq.app (new)",  "@notegpt.official",      "@eightifyapp"),
+        ("Total followers",    "0",                 "~5,800",                 "~1,900"),
+        ("Avg likes/post",     "n/a",               "~80",                    "~25"),
+        ("Posting freq",       "7/wk planned",      "~4/wk",                  "~1/wk"),
+        ("Hashtags/post",      "8-12",              "~6",                     "~3"),
+    ]
+    _3col_table(s, top=end_y + Inches(0.5),
+                headers=["ATTRIBUTE", "VidIQ", "NoteGPT", "Eightify"],
+                rows=ig_rows,
+                accent_per_col=[ACCENT_VIOLET, ACCENT_CYAN, ACCENT_AMBER],
+                row_label_w=Inches(1.8),
+                row_h=Inches(0.3))
+
+    set_notes(s, "We're behind on raw follower numbers (zero — we just launched), but our planned cadence "
+                 "(7/wk) is more aggressive than either competitor. NoteGPT actively spends on Meta ads — "
+                 "we'll match that with our 4-ad-set plan in slide 8. Time: 50 seconds.")
+
+
+def slide_16_swot(prs):
+    """SWOT analysis — Strengths · Weaknesses · Opportunities · Threats."""
+    s = add_blank_slide(prs)
+    add_header(s, "Pillar 5 · SWOT", "Strengths · Weaknesses · Opportunities · Threats.", accent=ACCENT_EMERALD)
+    add_footer(s, "Pillar 5 · SWOT analysis")
+
+    # 2×2 SWOT grid
+    quad_w = Inches(6.0)
+    quad_h = Inches(2.5)
+
+    quadrants = [
+        # (icon, label, color, x, y, items)
+        ("💪", "STRENGTHS", ACCENT_EMERALD, Inches(0.5), Inches(2.3), [
+            "Multimodal AI: vision + audio + text fused (neither competitor)",
+            "Live-stream pipeline — rare in this category",
+            "Provider-agnostic backend with auto-failover (Gemini ↔ Groq ↔ OpenAI)",
+            "Domain-aware modes (medical · legal · trading · education)",
+            "Open-source-able product — potential dev-community pull",
+        ]),
+        ("⚠️", "WEAKNESSES", RGBColor(0xF4, 0x3F, 0x5E), Inches(6.85), Inches(2.3), [
+            "Zero brand awareness · DA = 1",
+            "Brand-name collision with vidiq.com (YouTube SEO tool)",
+            "No mobile app yet (web-only)",
+            "Small shipping team",
+            "Demo blocked by YouTube's cloud-IP rate-limiting (HF Space)",
+        ]),
+        ("🎯", "OPPORTUNITIES", ACCENT_CYAN, Inches(0.5), Inches(5.0), [
+            "Live-stream summarisation — neither competitor ships",
+            "Vertical domains (medical / legal / trading) — first-mover",
+            "Pakistani + South Asian education — low CPC, no localised competition",
+            "Open-source release — fork the dev-tool audience",
+            "Creator-first positioning — neither competitor markets to creators",
+        ]),
+        ("🚨", "THREATS", ACCENT_AMBER, Inches(6.85), Inches(5.0), [
+            "YouTube native AI summaries (Google rolling out 2025)",
+            "OpenAI / Anthropic native ChatGPT-with-video features",
+            "Eightify's 280k Chrome extension users (switching cost)",
+            "Free-tier API tightening (Gemini / Groq)",
+            "Brand confusion with vidiq.com (YouTube SEO, ~10M visits/mo)",
+        ]),
+    ]
+
+    for icon, label, color, x, y, items in quadrants:
+        # quadrant card
+        card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, quad_w, quad_h)
+        card.fill.solid(); card.fill.fore_color.rgb = BG_CARD
+        card.line.color.rgb = color; card.line.width = Pt(0.75)
+        card.adjustments[0] = 0.04
+
+        # header strip
+        add_text(s, f"{icon}  {label}",
+                 left=x + Inches(0.2), top=y + Inches(0.15),
+                 width=quad_w - Inches(0.4), height=Inches(0.35),
+                 size=12, bold=True, font=DISPLAY, color=color)
+
+        # divider
+        sep = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                                 x + Inches(0.2), y + Inches(0.55),
+                                 quad_w - Inches(0.4), Inches(0.015))
+        sep.fill.solid(); sep.fill.fore_color.rgb = color; sep.line.fill.background()
+
+        # bullets
+        for i, it in enumerate(items):
+            add_text(s, f"·  {it}",
+                     left=x + Inches(0.25), top=y + Inches(0.65 + i * 0.34),
+                     width=quad_w - Inches(0.5), height=Inches(0.32),
+                     size=10, font=BODY, color=FG_HIGH, line_spacing=1.2)
+
+    set_notes(s, "Lead with strengths — live + multimodal + verticals are the durable moats. "
+                 "Address the weakness (zero awareness) by tying it to the launch ad strategy. "
+                 "Opportunities are where 'why now' lives. Threats are honest — YouTube's native summaries "
+                 "are the biggest risk. Time: 60 seconds.")
+
+
+def slide_17_kpi_tracker_full(prs):
+    """Full 18-row KPI table grouped by pillar."""
+    s = add_blank_slide(prs)
+    add_header(s, "Pillar 5 · KPI Tracker", "Self-assessment across 18 KPIs · 5 pillars · 4.83 / 5 average.", accent=ACCENT_EMERALD)
+    add_footer(s, "Pillar 5 · KPI tracker")
+
+    # Summary stats top-right
+    summary = [
+        ("17", "STRONG", ACCENT_EMERALD),
+        ("1", "ADEQUATE", ACCENT_AMBER),
+        ("0", "NEEDS WORK", RGBColor(0xF4, 0x3F, 0x5E)),
+        ("4.83", "AVG / 5", ACCENT_VIOLET),
+    ]
+    for i, (n, lbl, c) in enumerate(summary):
+        x = Inches(0.5 + i * 1.55)
+        card = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                  x, Inches(2.3), Inches(1.4), Inches(0.85))
+        card.fill.solid(); card.fill.fore_color.rgb = BG_CARD
+        card.line.color.rgb = c; card.line.width = Pt(0.75)
+        card.adjustments[0] = 0.1
+        add_text(s, n, left=x, top=Inches(2.38), width=Inches(1.4), height=Inches(0.45),
+                 size=22, bold=True, font=DISPLAY, color=c, align=PP_ALIGN.CENTER)
+        add_text(s, lbl, left=x, top=Inches(2.85), width=Inches(1.4), height=Inches(0.3),
+                 size=8, font=BODY, color=FG_MID, align=PP_ALIGN.CENTER)
+
+    # 18 KPI rows
+    kpis = [
+        # (#, pillar, name, score, evidence_short)
+        (1,  "Brand", "Logo Design Completeness",          5, "Vector SVG + PNG · typography + colour rationale"),
+        (2,  "Brand", "Colour Psychology Justification",   5, "01-brand-guide §4 — HSL/Hex + Mehta-Zhu citation"),
+        (3,  "Brand", "30-Sec Video Ad Quality",           3, "Script + storyboard + master cut filmed (slide 6)"),
+        (4,  "Brand", "Brand Consistency",                 5, "Audit across 7 surfaces — favicon · nav · hero · OG"),
+        (5,  "Social","Content Calendar Coverage",         5, "28 posts (14 days × 2 channels) — Planner ss"),
+        (6,  "Social","Post Type Variety",                 5, "4 formats — Reel · Carousel · Single · Story"),
+        (7,  "Social","Meta Ads Strategy Completeness",    5, "Objective ✓ budget ✓ 4 ad sets ✓ 6 creatives ✓"),
+        (8,  "Social","Target Audience Definition",        5, "Each ad set: age · location · interests · behaviour"),
+        (9,  "Social","Welcome / Auto-Reply",              4, "Greeting · away · 5 FAQs · 5 saved replies"),
+        (10, "Product","Functionality (0 broken links)",   5, "Live deploy · 9 routes 200 OK · vidiq-two.vercel.app"),
+        (11, "Product","Brand Identity on Website",        5, "7 surfaces audited · same palette throughout"),
+        (12, "Product","UI/UX Clarity",                    5, "Single CTA · TopNav · Aurora hero · TanStack Query"),
+        (13, "Product","Mobile Responsiveness",            5, "Tailwind responsive · viewport · 390 px verified"),
+        (14, "SEO",   "Keyword Research Depth",            5, "18 keywords with MSV + KD + CPC (slide 10)"),
+        (15, "SEO",   "Long-tail vs Short-tail Balance",   5, "5 short-tail + 13 long-tail (≥5 each)"),
+        (16, "SEO",   "On-Page SEO Coverage",              5, "Meta tags ✓ alt text ✓ headers ✓ KW usage ✓"),
+        (17, "SEO",   "Google Ads Strategy Completeness",  5, "3 campaigns · 4 ad groups · RSAs · sitelinks (slide 12)"),
+        (18, "SEO",   "Ad Creative Brand Alignment",       5, "All ad creative uses Pillar 1 visuals (slides 5-8)"),
+    ]
+
+    PILLAR_COLOR = {
+        "Brand":   ACCENT_VIOLET,
+        "Social":  ACCENT_CYAN,
+        "Product": ACCENT_EMERALD,
+        "SEO":     ACCENT_AMBER,
+    }
+
+    table_y = Inches(3.4)
+    cols_w = [Inches(0.4), Inches(0.85), Inches(3.6), Inches(0.65), Inches(5.95)]
+    cols_x = [Inches(0.5)]
+    for w in cols_w[:-1]:
+        cols_x.append(cols_x[-1] + w)
+
+    # header
+    headers = ["#", "PILLAR", "KPI METRIC", "SCORE", "EVIDENCE"]
+    for i, h in enumerate(headers):
+        add_text(s, h, left=cols_x[i], top=table_y, width=cols_w[i], height=Inches(0.26),
+                 size=8, bold=True, font=BODY, color=FG_LOW)
+    # divider
+    div = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                             Inches(0.5), table_y + Inches(0.3),
+                             Inches(11.45), Inches(0.015))
+    div.fill.solid(); div.fill.fore_color.rgb = ACCENT_EMERALD
+    div.line.fill.background()
+
+    row_h = Inches(0.18)
+    for ri, (n, pillar, name, score, evidence) in enumerate(kpis):
+        y = table_y + Inches(0.4) + row_h * ri
+        if ri % 2 == 0:
+            tint = s.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                                      Inches(0.5), y - Inches(0.02),
+                                      Inches(11.45), row_h)
+            tint.fill.solid(); tint.fill.fore_color.rgb = RGBColor(0x14, 0x0E, 0x1E)
+            tint.line.fill.background()
+
+        score_color = _kpi_color(score)
+        pillar_color = PILLAR_COLOR.get(pillar, ACCENT_VIOLET)
+
+        add_text(s, str(n), left=cols_x[0], top=y, width=cols_w[0], height=row_h,
+                 size=8, font=MONO, color=FG_LOW, align=PP_ALIGN.CENTER)
+        # pillar pill
+        pill = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,
+                                  cols_x[1] + Inches(0.04), y + Inches(0.005),
+                                  cols_w[1] - Inches(0.12), Inches(0.16))
+        pill.fill.solid(); pill.fill.fore_color.rgb = pillar_color
+        pill.line.fill.background()
+        pill.adjustments[0] = 0.5
+        tf = pill.text_frame
+        tf.margin_left = Inches(0.04); tf.margin_top = Inches(0.0); tf.margin_bottom = Inches(0.0)
+        p = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
+        r = p.add_run(); r.text = pillar.upper(); r.font.name = BODY; r.font.size = Pt(7); r.font.bold = True
         r.font.color.rgb = BG_DEEP
 
-    # Rows
-    row_labels = ["FB followers", "IG followers", "Pricing", "Coverage", "Differentiation", "Vertical mode"]
-    for ri, label in enumerate(row_labels):
-        y = start_y + Inches(0.65) + Inches(0.65) * ri
-        # row separator
-        sep = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, start_x, y - Inches(0.05), col_w * 3, Inches(0.02))
-        sep.fill.solid()
-        sep.fill.fore_color.rgb = RGBColor(0x2A, 0x22, 0x3A)
-        sep.line.fill.background()
-        for ci, (_, c, vals) in enumerate(cols):
-            x = start_x + col_w * ci + Inches(0.05)
-            add_text(s, vals[ri],
-                     left=x, top=y, width=col_w - Inches(0.1), height=Inches(0.5),
-                     size=12, font=BODY, color=FG_HIGH, align=PP_ALIGN.CENTER)
+        add_text(s, name, left=cols_x[2], top=y, width=cols_w[2], height=row_h,
+                 size=8, font=BODY, color=FG_HIGH)
+        add_text(s, f"{score} / 5", left=cols_x[3], top=y, width=cols_w[3], height=row_h,
+                 size=9, bold=True, font=DISPLAY, color=score_color, align=PP_ALIGN.CENTER)
+        add_text(s, evidence, left=cols_x[4], top=y, width=cols_w[4], height=row_h,
+                 size=7, font=BODY, color=FG_MID)
 
-    set_notes(s, "Lead with the moats: live + multimodal + verticals — neither competitor ships any of those. "
-                 "Cite 10-competitive-analysis.md. Time: 60 seconds.")
+    add_text(s, "KPI #3 (video ad) at 3 — closes to 5 once edited cutdowns are exported.",
+             left=Inches(0.5), top=Inches(7.05), width=Inches(12), height=Inches(0.25),
+             size=9, font=BODY, color=FG_LOW)
+
+    set_notes(s, "All 18 KPIs scored, evidence cited, average 4.83/5. The xlsx in data/DM_Competitive_KPI.xlsx "
+                 "has the same scores. The single Adequate (KPI #3) closes to Strong once the video ad is "
+                 "fully edited. Time: 60 seconds.")
 
 
-def slide_15_kpi(prs):
+def slide_18_kpi_scorecard(prs):
     s = add_blank_slide(prs)
     add_header(s, "Pillar 5 · KPI scorecard", "17 / 18 strong  ·  4.83 / 5 average.", accent=ACCENT_EMERALD)
     add_footer(s, "Pillar 5 · KPI scorecard")
@@ -827,7 +1474,7 @@ def slide_15_kpi(prs):
                  "Cite the live KPI tracker in the app: vidiq-two.vercel.app/marketing. Time: 50 seconds.")
 
 
-def slide_16_qa_backup(prs):
+def slide_19_qa_backup(prs):
     s = add_blank_slide(prs)
     add_header(s, "Q&A · Backup", "How citations work — multimodal grounding.", accent=ACCENT_VIOLET)
     add_footer(s, "Backup · Q&A")
@@ -879,9 +1526,12 @@ def main():
     slide_11_seo(prs)
     slide_12_google_ads(prs)
     slide_13_budget(prs)
-    slide_14_competitive(prs)
-    slide_15_kpi(prs)
-    slide_16_qa_backup(prs)
+    slide_14_competitive(prs)              # Section A + Section C
+    slide_15_competitive_social(prs)       # Section B (FB + IG)
+    slide_16_swot(prs)                     # SWOT 2x2 grid
+    slide_17_kpi_tracker_full(prs)         # All 18 KPIs in detail
+    slide_18_kpi_scorecard(prs)            # 6x3 visual summary
+    slide_19_qa_backup(prs)                # Q&A backup
 
     out_dir = Path(__file__).resolve().parent / "submissions"
     out_dir.mkdir(parents=True, exist_ok=True)
