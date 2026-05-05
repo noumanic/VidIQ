@@ -8,6 +8,8 @@
 
 Transcribe, analyse keyframes, summarise, detect events, and converse with any YouTube video or live stream — all from a modern web dashboard.
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-vidiq--two.vercel.app-7c3aed?logo=vercel&logoColor=white)](https://vidiq-two.vercel.app)
+[![HF Space](https://img.shields.io/badge/Backend-Hugging_Face_Spaces-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/spaces/noumanhafeez11/vidiq-backend)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
@@ -19,6 +21,8 @@ Transcribe, analyse keyframes, summarise, detect events, and converse with any Y
 [Architecture](#-architecture) ·
 [API](#-api-reference) ·
 [Configuration](#%EF%B8%8F-configuration) ·
+[Deployment](#-deployment) ·
+[Marketing](#-marketing-project-integration) ·
 [Roadmap](#-roadmap)
 
 </div>
@@ -50,6 +54,15 @@ The system is designed around three principles:
 | **Time-stamped insights** | Every chapter, event, and chat citation seeks the embedded player to the moment |
 | **Conversational Q&A** | Retrieval-grounded chat with timestamp citations |
 | **Strategy → pseudocode** | Optional pseudocode extraction for tutorial videos |
+| **Action items + open questions** | LLM extracts imperative next-steps + unresolved questions per analysis |
+| **Cross-library analytics** | `/analytics` page — KPI strip + 7 recharts (volume, source mix, status funnel, topics, events, sentiment, durations) with 7/14/30/90-day windows |
+| **Per-video Insights tab** | Activity timeline, chapter-word density, keyword frequency, speaker share — all client-side off `VideoDetail` |
+| **Side-by-side comparison** | `/compare` — pick 2-3 analyses, multi-series bar chart of metrics + topic overlap (shared / unique sets) |
+| **Library search + tagging** | Server-side LIKE search across title/channel/transcript/topics + per-video tag chips with editor + tag-filter row |
+| **Transcript translation** | `/api/videos/:id/translate?lang=` — Gemini-driven, 11 languages with RTL support, cached in `translations` table |
+| **Marketing project dashboard** | `/marketing` — live KPI tracker, budget breakdown, competitive matrix, sortable keyword research — sourced from `marketing/*.md` |
+| **Modern UX layer** | Landing splash · light/dark theme · ⌘K command palette · onboarding tour · top-progress nav bar · skippable kbd shortcuts |
+| **Export & share** | Markdown / JSON / Print-to-PDF export per video · copy link · Web Share API |
 
 ---
 
@@ -69,6 +82,10 @@ flowchart LR
 
     subgraph Backend["🐍  Backend — FastAPI async"]
         REST["REST Routes\n/api/videos · /api/live"]
+        AN["Analytics\n/api/analytics/overview"]
+        SR["Search\n/api/search?q="]
+        TR["Translate\n/api/videos/:id/translate"]
+        TG["Tags\nPATCH /api/videos/:id/tags"]
         WS["WebSocket\n/ws/videos/{id}"]
         Bus["EventBus\nin-process pub/sub"]
         Workers["Background Workers\nBackgroundTasks · LiveSession"]
@@ -145,7 +162,7 @@ flowchart LR
 
     class UI client
     class Rewrite edge
-    class REST,WS,Bus,Workers backend
+    class REST,AN,SR,TR,TG,WS,Bus,Workers backend
     class YT,TC,FR,VS,SUM,QA pipeline
     class GEM,GRQ,OAI,STUB llm
     class DB,Media storage
@@ -173,6 +190,52 @@ flowchart LR
     linkStyle 20 stroke:#4338ca,stroke-width:3px
     linkStyle 21 stroke:#0891b2,stroke-width:3px
 ```
+
+---
+
+## Application Surface
+
+The Next.js App Router exposes nine routes — six end-user pages, two SEO endpoints, and one dynamic detail view. Every nav link is eagerly prefetched on top-nav mount so subsequent clicks are essentially instant.
+
+```mermaid
+flowchart LR
+    Land["🏠  /\nDashboard\nlanding splash · hero · CTA"]:::page
+    Anal["✨  /analyze\nForm · domain mode · pseudocode toggle"]:::page
+    Live["📡  /live\nLive-stream form"]:::page
+    Lib["📚  /library\nSearch · tag filter · grid"]:::page
+    Cmp["🔀  /compare\nMulti-select 2-3 · side-by-side"]:::page
+    Stats["📊  /analytics\nKPI strip · 7 recharts"]:::page
+    Mkt["📣  /marketing\nKPI tracker · budget · competitive · KW"]:::page
+    Det["🎬  /videos/[id]\n7-tab workspace\nSummary · Transcript · Frames · Events · Insights · Chat · Code"]:::page
+
+    Sm["🗺  /sitemap.xml"]:::seo
+    Rb["🤖  /robots.txt"]:::seo
+
+    Land --> Anal --> Det
+    Land --> Live --> Det
+    Lib --> Det
+    Lib --> Cmp
+    Cmp --> Det
+    Stats --> Det
+    Mkt
+    Sm
+    Rb
+
+    classDef page fill:#7c3aed,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef seo  fill:#0891b2,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    linkStyle 0,1,2,3,4,5,6 stroke:#7c3aed,stroke-width:3px,color:#ffffff
+```
+
+Cross-cutting UX layer (mounted globally in `app/layout.tsx`):
+
+| Component | File | Purpose |
+|---|---|---|
+| **Landing splash** | `components/fx/landing-splash.tsx` | First-session intro animation on `/` (skippable, respects `prefers-reduced-motion`) |
+| **Command palette** | `components/layout/command-palette.tsx` | ⌘K / Ctrl+K — nav · theme · recent videos |
+| **Onboarding tour** | `components/layout/onboarding-tour.tsx` | 5-step modal walkthrough on first visit |
+| **Theme toggle** | `components/layout/theme-toggle.tsx` | Light / system / dark with `<head>`-injected init script (no FOUC) |
+| **Nav progress bar** | `components/layout/nav-progress.tsx` | Top-of-viewport gradient bar on every internal link click |
+| **Themed toaster** | `components/layout/themed-toaster.tsx` | Sonner toast with per-theme styling |
 
 ---
 
@@ -367,6 +430,7 @@ erDiagram
     VIDEOS ||--o{ KEYFRAMES : contains
     VIDEOS ||--o{ EVENTS : contains
     VIDEOS ||--o{ CHAT_MESSAGES : has
+    VIDEOS ||--o{ TRANSLATIONS : has
 
     VIDEOS {
         string id PK
@@ -380,6 +444,7 @@ erDiagram
         float progress
         string stage
         text error
+        json tags "user-applied tags"
         datetime created_at
         datetime updated_at
     }
@@ -393,6 +458,8 @@ erDiagram
         json chapters
         string sentiment
         text pseudocode
+        json action_items "imperative next-steps"
+        json questions "open questions raised"
     }
 
     TRANSCRIPT_SEGMENTS {
@@ -431,7 +498,21 @@ erDiagram
         json citations
         datetime created_at
     }
+
+    TRANSLATIONS {
+        int id PK
+        string video_id FK
+        string language "ISO 639-1 (ur, hi, ar, …)"
+        json segments "translated transcript with timestamps"
+        datetime created_at
+    }
 ```
+
+> Schema migrations on existing SQLite DBs are handled by an idempotent
+> startup helper in `app/core/database.py` — it inspects each table via
+> `PRAGMA table_info` and runs `ALTER TABLE ADD COLUMN` only for missing
+> columns. New analyses pick up `action_items`, `questions`, and `tags`
+> automatically; old analyses get the columns added with empty defaults.
 
 ---
 
@@ -443,13 +524,17 @@ erDiagram
 | **Styling** | Tailwind CSS 3 · shadcn/ui-style primitives · Radix UI |
 | **State / data** | TanStack Query 5 · WebSocket |
 | **Animation** | Framer Motion · CSS keyframes |
+| **Charts / data viz** | recharts 2 (analytics page · per-video Insights · compare · marketing dashboard) |
+| **Markdown** | react-markdown · remark-gfm (transcript rendering) |
 | **Backend framework** | FastAPI 0.115 · Uvicorn · Pydantic 2 |
 | **ORM / database** | SQLAlchemy 2 (async) · SQLite (dev) · PostgreSQL (prod-ready) |
 | **AI — text** | Google Gemini · Groq Llama 3.3 · OpenAI (interchangeable) |
 | **AI — vision** | Gemini Vision (extensible to GPT-4o, LLaVA) |
 | **AI — speech** | YouTube Transcript API · faster-whisper (local) · OpenAI Whisper (paid) |
 | **Video / media** | yt-dlp · OpenCV · static-ffmpeg |
-| **Containerisation** | Docker · docker-compose |
+| **Containerisation** | Docker · docker-compose · Hugging Face Spaces (Docker SDK) |
+| **Hosting (production)** | Vercel (frontend) · Hugging Face Spaces (backend) — both free tier |
+| **CI** | GitHub Actions — `marketing-branch` → `main` auto-merge workflow |
 
 ---
 
@@ -500,6 +585,153 @@ UI → **http://localhost:3000**
 
 ```bash
 GEMINI_API_KEY=your-key GROQ_API_KEY=your-key docker compose up --build
+```
+
+---
+
+## ☁️ Deployment
+
+VidIQ runs on a **two-host, $0 / month** topology:
+
+| Layer | Host | URL |
+|---|---|---|
+| Frontend (Next.js) | **Vercel** (Hobby) | <https://vidiq-two.vercel.app> |
+| Backend (FastAPI) | **Hugging Face Spaces** (Docker SDK, CPU-basic) | <https://noumanhafeez11-vidiq-backend.hf.space> |
+
+```mermaid
+flowchart LR
+    Browser["🌐 Browser"]:::client
+    Vercel["⚡ Vercel\nNext.js · static + SSR\nvidiq-two.vercel.app"]:::edge
+    HF["🤗 Hugging Face Space\nFastAPI · uvicorn · ffmpeg\nfaster-whisper · OpenCV\nnoumanhafeez11-vidiq-backend.hf.space"]:::backend
+    APIs["🧠 Free APIs\nGemini · Groq · YT Transcript"]:::llm
+
+    Browser -->|"HTTPS"| Vercel
+    Vercel -->|"/proxy/api/*  →  rewrite"| HF
+    Vercel -->|"/proxy/media/*  →  rewrite"| HF
+    HF -->|"prompt + frames + transcript"| APIs
+
+    classDef client   fill:#7c3aed,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef edge     fill:#0891b2,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef backend  fill:#059669,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef llm      fill:#db2777,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+
+    linkStyle 0 stroke:#7c3aed,stroke-width:3px,color:#ffffff
+    linkStyle 1 stroke:#0891b2,stroke-width:3px,color:#ffffff
+    linkStyle 2 stroke:#0891b2,stroke-width:3px,color:#ffffff,stroke-dasharray:6
+    linkStyle 3 stroke:#db2777,stroke-width:3px,color:#ffffff
+```
+
+### Why this split
+
+| Concern | Vercel | HF Spaces (vs Render) |
+|---|---|---|
+| Stack fit | Native Next.js · CDN edge | Docker SDK · works with `backend/Dockerfile` unchanged |
+| Cold start | None | None (HF doesn't sleep idle Spaces — Render free does, 30-45 s wake) |
+| RAM | n/a (static + SSR) | **16 GB** (vs Render free's 512 MB — Whisper-tiny + OpenCV + ffmpeg fits comfortably) |
+| Cost | $0 | $0 |
+| Deploy | `vercel --prod` from `frontend/` | `git push` to the Space repo |
+| Hostname | `*.vercel.app` (free) | `*.hf.space` (free) |
+
+### Production wiring
+
+| Surface | Setting | Value |
+|---|---|---|
+| Vercel project | **Root Directory** | `frontend` |
+| Vercel project | **Install Command** | `npm install --legacy-peer-deps` (`.npmrc` already pinned) |
+| Vercel env | `NEXT_PUBLIC_API_URL` | `https://noumanhafeez11-vidiq-backend.hf.space` |
+| Vercel env | `NEXT_PUBLIC_SITE_URL` | `https://vidiq-two.vercel.app` |
+| HF Space frontmatter | `app_port` | `7860` (matches `${PORT:-8000}` runtime override) |
+| HF Space env | `CORS_ORIGINS` | `https://vidiq-two.vercel.app` |
+| HF Space secrets | `GEMINI_API_KEY` · `GROQ_API_KEY` | (provider tokens) |
+| HF Space variables | model + transcription config | mirrors `backend/.env.example` |
+
+### Deploy commands
+
+```bash
+# Frontend (Vercel)
+cd frontend
+npx vercel --prod                  # uploads local build context, runs next build on Vercel
+
+# Backend (Hugging Face Space)
+cd ~ && git clone https://huggingface.co/spaces/<user>/vidiq-backend hf-space
+cp -r /path/to/VidIQ/backend/. hf-space/
+cd hf-space && git add . && git commit -m "deploy" && git push
+```
+
+The first HF Space build takes ~5-8 min (downloading ffmpeg + OpenCV + Whisper-tiny). Subsequent pushes redeploy in ~2 min.
+
+> **Known caveat — YouTube cloud-IP blocking.** Hugging Face Space IPs are
+> rate-limited by YouTube's anti-bot check. Production analyses of YouTube
+> URLs may fail with `Sign in to confirm you're not a bot`. This is a
+> yt-dlp + cloud-host limitation, not a code bug. For live demos use a
+> local backend (residential IP), or use a non-YouTube source (Vimeo,
+> direct mp4, podcast feed) — yt-dlp scrapes those normally.
+
+---
+
+## 📣 Marketing Project Integration
+
+VidIQ doubles as the deliverable for a **Digital Marketing project** spanning five rubric pillars. The `marketing/` folder contains 14 self-contained markdown deliverables plus a generator for the final presentation deck:
+
+| Pillar | Marketing artefact | Surfaced in app |
+|---|---|---|
+| **1 — Branding** | `01-brand-guide.md` · `02-video-ad-script.md` | Logo · palette · type baked into every page |
+| **2 — Social** | `03-content-calendar.md` · `04-meta-ads-plan.md` · `05-social-templates.md` | (out of app — slide deck only) |
+| **3 — Product** | The web app itself | Live at <https://vidiq-two.vercel.app> |
+| **4 — SEO/SEM** | `06-keyword-research.md` · `07-onpage-seo-report.md` · `08-google-ads-plan.md` | `/sitemap.xml` · `/robots.txt` · JSON-LD · per-page meta |
+| **5 — Competitive + KPI** | `09-budget.md` · `10-competitive-analysis.md` · `11-kpi-tracker.md` | `/marketing` route renders all four |
+
+### Marketing dashboard data flow
+
+```mermaid
+flowchart LR
+    MDs["📄 marketing/*.md\n• 11-kpi-tracker.md\n• 09-budget.md\n• 10-competitive-analysis.md\n• 06-keyword-research.md"]:::source
+
+    Sync["⚙️  scripts/sync-marketing.mjs\nescape · template-literal\npredev / prebuild hook"]:::tool
+
+    Content["📦 src/lib/marketing/content.ts\nauto-generated\nTS string constants"]:::artefact
+
+    Parsers["🔍 lib/marketing/parsers.ts\nKPI · budget · competitive · KW"]:::logic
+
+    Loader["🎯 lib/marketing/loader.ts\nzero-fs runtime"]:::logic
+
+    Page["🖥  app/marketing/page.tsx\nKPI tracker · budget · competitive · keyword"]:::page
+
+    MDs -->|read| Sync
+    Sync -->|emit| Content
+    Content -->|import| Loader
+    Parsers -->|imported by| Loader
+    Loader -->|server component data| Page
+
+    classDef source   fill:#0891b2,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef tool     fill:#d97706,stroke:#000000,stroke-width:3px,color:#000000,font-weight:bold
+    classDef artefact fill:#4338ca,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef logic    fill:#059669,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+    classDef page     fill:#7c3aed,stroke:#000000,stroke-width:3px,color:#ffffff,font-weight:bold
+
+    linkStyle 0 stroke:#0891b2,stroke-width:3px,color:#ffffff
+    linkStyle 1 stroke:#d97706,stroke-width:3px,color:#000000
+    linkStyle 2 stroke:#4338ca,stroke-width:3px,color:#ffffff
+    linkStyle 3 stroke:#059669,stroke-width:3px,color:#ffffff
+    linkStyle 4 stroke:#7c3aed,stroke-width:3px,color:#ffffff
+```
+
+### Marketing surface summary
+
+| Component on `/marketing` | Source MD | Visualisation |
+|---|---|---|
+| **KPI tracker** | `11-kpi-tracker.md` | Per-pillar collapsible groups · animated progress bars · status chips · summary scorecard (4.83 / 5) |
+| **Budget breakdown** | `09-budget.md` | recharts donut · planned/actual toggle · categorised line-item table · share bars |
+| **Competitive matrix** | `10-competitive-analysis.md` | Tabbed comparison (Company / Facebook / Instagram / Other / Website) + 3-col SWOT + opps/threats |
+| **Keyword research** | `06-keyword-research.md` | Sortable table · MSV bars · KD bars (green/amber/rose by difficulty) · intent badges · short/long-tail filter · search |
+
+### Final presentation deck
+
+`marketing/build_deck.py` uses `python-pptx` to generate a 16-slide branded `.pptx` (one per `12-presentation-outline.md` blueprint) at `marketing/submissions/VidIQ_Final_Presentation.pptx`. Brand fonts (Plus Jakarta Sans / Inter / JetBrains Mono), brand palette, speaker notes per slide, ready to import to **Canva** (`Create → Upload → drag the .pptx`) or open in PowerPoint / Keynote.
+
+```bash
+python marketing/build_deck.py
+# → marketing/submissions/VidIQ_Final_Presentation.pptx (16 slides)
 ```
 
 ---
@@ -557,12 +789,16 @@ CORS_ORIGINS=http://localhost:3000
 | `GET` | `/api/health` | Service status, configured provider, available models |
 | `POST` | `/api/videos` | Start analysis · body `{ url, domain?, extract_pseudocode? }` |
 | `GET` | `/api/videos` | List analyses (newest first) |
-| `GET` | `/api/videos/{id}` | Full detail — summary, transcript, keyframes, events |
+| `GET` | `/api/videos/{id}` | Full detail — summary (incl. action_items + questions), transcript, keyframes, events, tags |
 | `DELETE` | `/api/videos/{id}` | Remove analysis + media |
+| `PATCH` | `/api/videos/{id}/tags` | Update tags · body `{ tags: string[] }` (sanitised, max 12 × 32 chars) |
+| `POST` | `/api/videos/{id}/translate` | Translate transcript · query `lang=ur&refresh=false` (cached in `translations` table) |
 | `GET` | `/api/videos/{id}/chat` | Conversation history |
 | `POST` | `/api/videos/{id}/chat` | Ask a question · body `{ message }` |
 | `POST` | `/api/live` | Start live-stream session · body `{ url, chunk_seconds }` |
 | `POST` | `/api/live/{id}/stop` | Stop a live session |
+| `GET` | `/api/analytics/overview` | Aggregated KPIs + breakdowns · query `days=30` (1-365) |
+| `GET` | `/api/search` | Cross-library LIKE search across title / channel / transcript / topics · query `q=&limit=20` |
 | `WS` | `/ws/videos/{id}` | Real-time progress + live-chunk events |
 
 Interactive documentation: **http://localhost:8000/docs**
@@ -576,52 +812,100 @@ VidIQ/
 ├── backend/                       FastAPI service + AI pipeline
 │   ├── app/
 │   │   ├── api/                   REST + WebSocket routes
-│   │   │   ├── videos.py
+│   │   │   ├── videos.py          analyze · detail · chat · tags · translate
 │   │   │   ├── live.py
-│   │   │   └── ws.py
+│   │   │   ├── ws.py
+│   │   │   ├── analytics.py       /api/analytics/overview (KPIs + 7 series)
+│   │   │   └── search.py          /api/search?q= cross-library LIKE search
 │   │   ├── core/                  Config, DB, EventBus, ffmpeg setup
-│   │   │   ├── config.py
-│   │   │   ├── database.py
+│   │   │   ├── config.py          absolute-path .env loading (cwd-independent)
+│   │   │   ├── database.py        async engine + idempotent ALTER TABLE migrator
 │   │   │   ├── events.py
 │   │   │   └── ffmpeg_setup.py
 │   │   ├── models/                SQLAlchemy 2 ORM
-│   │   │   └── video.py
+│   │   │   └── video.py           Video · Summary · Translation · Keyframe · Event · TranscriptSegment · ChatMessage
 │   │   ├── schemas/               Pydantic DTOs
-│   │   │   └── video.py
+│   │   │   └── video.py           + TagsUpdate · TranslationResponse · SearchResponse
 │   │   ├── services/              Domain logic
 │   │   │   ├── llm.py             Multi-provider LLM with rotation
 │   │   │   ├── youtube.py         yt-dlp wrappers
 │   │   │   ├── frames.py          OpenCV keyframe extraction
-│   │   │   ├── summarize.py       Map-reduce summarisation
+│   │   │   ├── summarize.py       Map-reduce summarisation + action_items + questions
+│   │   │   ├── translate.py       Chunked transcript translation via Gemini
 │   │   │   ├── qa.py              Retrieval-grounded chat
 │   │   │   ├── pipeline.py        Recorded-video orchestration
 │   │   │   └── live.py            Live-stream orchestration
 │   │   └── main.py                FastAPI app + lifespan
 │   ├── requirements.txt
-│   ├── Dockerfile
+│   ├── Dockerfile                 honours ${PORT:-8000} (HF · Render · local)
+│   ├── README.md                  HF Space metadata (sdk: docker)
 │   └── .env.example
 │
 ├── frontend/                      Next.js dashboard
 │   ├── src/
 │   │   ├── app/                   App Router pages
-│   │   │   ├── page.tsx           Dashboard
+│   │   │   ├── page.tsx           Dashboard (with landing splash on /)
 │   │   │   ├── analyze/           Recorded video form
 │   │   │   ├── live/              Live stream form
-│   │   │   ├── library/           Past analyses
-│   │   │   └── videos/[id]/       Video workspace
+│   │   │   ├── library/           Past analyses · search · tag filter
+│   │   │   ├── compare/           Side-by-side 2-3 video comparison
+│   │   │   ├── analytics/         KPI strip + 7 recharts
+│   │   │   ├── marketing/         Marketing-project dashboard (server component)
+│   │   │   ├── videos/[id]/       Video workspace (7-tab)
+│   │   │   ├── robots.ts          /robots.txt generator
+│   │   │   └── sitemap.ts         /sitemap.xml generator
 │   │   ├── components/
 │   │   │   ├── ui/                Primitives (Button, Card, Tabs, …)
-│   │   │   ├── layout/            Top nav
-│   │   │   ├── dashboard/         Hero CTA, stats, recent grid
-│   │   │   ├── marketing/         Feature card, stat strip
-│   │   │   ├── fx/                Aurora bg, logo
-│   │   │   └── video/             Workspace, panels, chat
-│   │   └── lib/                   API client, utils
-│   ├── public/                    Logos, static assets
+│   │   │   ├── layout/            Top nav · theme toggle · command palette · onboarding · nav progress · themed toaster
+│   │   │   ├── dashboard/         Hero CTA, stats, recent grid (with tag chips + snippet)
+│   │   │   ├── marketing/         Feature card · stat strip · KPI tracker · budget · competitive · keyword
+│   │   │   ├── analytics/         chart-shell · charts · kpi-strip
+│   │   │   ├── compare/           compare-grid (cards + bar chart + topic overlap)
+│   │   │   ├── fx/                Aurora bg · logo · landing-splash · seo-jsonld
+│   │   │   └── video/             Workspace · panels · chat · share-menu · tag-editor · insights-panel · workspace-tabs
+│   │   └── lib/
+│   │       ├── api.ts             API client (analytics · search · translate · tags · export)
+│   │       ├── theme.tsx          ThemeProvider + FOUC-safe init script
+│   │       ├── export.ts          Markdown / JSON serialisation + download trigger
+│   │       └── marketing/         loader · parsers · types · content (auto-generated)
+│   ├── public/                    Logos (PNG + SVG), favicon, OG images
+│   ├── scripts/
+│   │   └── sync-marketing.mjs     Inlines marketing/*.md → src/lib/marketing/content.ts
 │   ├── tailwind.config.ts
-│   ├── package.json
+│   ├── package.json               + predev/prebuild → sync-marketing
+│   ├── .npmrc                     legacy-peer-deps=true (Vercel/CI compat)
+│   ├── next.config.mjs            /proxy/api/* + /proxy/media/* rewrite (whitespace-tolerant)
 │   ├── Dockerfile
 │   └── .env.example
+│
+├── marketing/                     Digital-Marketing project deliverables (Pillars 1-5)
+│   ├── 01-brand-guide.md
+│   ├── 02-video-ad-script.md
+│   ├── 03-content-calendar.md
+│   ├── 04-meta-ads-plan.md
+│   ├── 05-social-templates.md
+│   ├── 06-keyword-research.md
+│   ├── 07-onpage-seo-report.md
+│   ├── 08-google-ads-plan.md
+│   ├── 09-budget.md
+│   ├── 10-competitive-analysis.md
+│   ├── 11-kpi-tracker.md
+│   ├── 12-presentation-outline.md
+│   ├── 13-self-do-checklist.md
+│   ├── 14-vercel-deployment.md
+│   ├── 15-deployment-evidence.md
+│   ├── build_deck.py              python-pptx generator → 16-slide branded deck
+│   ├── submissions/
+│   │   └── VidIQ_Final_Presentation.pptx
+│   └── README.md
+│
+├── data/                          Project brief + KPI/competitive xlsx
+│   ├── Project.docx               Rubric brief
+│   ├── DM_Competitive_KPI.xlsx    Filled (Sections A-D + 18 KPI rows)
+│   └── fill_xlsx.py               Regenerates xlsx from MDs
+│
+├── .github/workflows/
+│   └── auto-merge.yml             marketing-branch → main fast-forward action
 │
 ├── docker-compose.yml
 ├── LICENSE
@@ -637,7 +921,7 @@ VidIQ/
 Every external dependency (LLM, vision, transcription) is wrapped in a thin adapter in `app/services/llm.py`. The dispatcher walks a configurable provider chain (`gemini → groq → openai`) and rotates models within a provider when one hits a quota or denial error. A single API failure is invisible to callers.
 
 ### Map-reduce summarisation
-For long videos, the transcript is chunked into ~4500-char windows. Each chunk is summarised independently (map), then a final synthesis call merges the mini-summaries into the canonical overview, key points, topics, and sentiment (reduce). Chapters are derived from chunk boundaries to avoid an extra LLM round-trip.
+For long videos, the transcript is chunked into ~4500-char windows. Each chunk is summarised independently (map), then a final synthesis call merges the mini-summaries into the canonical overview, key points, topics, and sentiment (reduce). Chapters are derived from chunk boundaries to avoid an extra LLM round-trip. The same prompts now also extract `action_items` (imperative next-steps) and `questions` (open questions raised) — surfaced as dedicated cards on the Summary tab.
 
 ### Defensive JSON parsing
 LLMs occasionally wrap JSON in markdown fences or emit arrays where objects are expected. `_safe_json()` strips fences, finds the first balanced `{...}` block, and falls back to wrapping arrays — making the pipeline robust to provider quirks.
@@ -648,9 +932,40 @@ A lightweight in-process pub/sub (`app/core/events.py`) fans pipeline progress e
 ### Static media serving
 Extracted keyframes are written under `MEDIA_DIR` and served via FastAPI's `StaticFiles` mount at `/media/*`. The Next.js rewrite layer proxies these through `/proxy/media/*` so the frontend has zero knowledge of the backend host.
 
+### Filesystem-free marketing dashboard
+The `/marketing` page reads from `frontend/src/lib/marketing/content.ts` — a build-time generated TypeScript module that inlines `marketing/*.md` as string constants. No `fs.readFile` at request time, no dependency on Vercel "Include outside files" toggles, no path-resolution gymnastics. Edits to source MDs at the repo root flow into the bundle via `npm run sync-marketing` (auto-fires on `predev` and `prebuild`).
+
+### Idempotent SQLite migrations
+`init_db()` runs on every backend startup and applies missing columns via `PRAGMA table_info` + `ALTER TABLE ADD COLUMN`. New analyses get `tags`, `action_items`, `questions` automatically; pre-existing analyses get the columns added with empty defaults. No external migration tool, no Alembic config — appropriate for the project's free-tier-first ethos.
+
+### Whitespace-tolerant rewrites
+`next.config.mjs` strips leading/trailing whitespace and trailing slashes from `NEXT_PUBLIC_API_URL` and prepends `https://` when missing. This survives clipboard-paste accidents, env-var GUI bugs, and copy-from-docs mishaps that would otherwise produce `Invalid URL` build errors during deploy.
+
+### Eager nav prefetch
+`TopNav` fires `router.prefetch()` for every nav target on mount via `requestIdleCallback`, with a belt-and-braces `onMouseEnter` re-prefetch per link. Combined with the global `NavigationProgress` bar (which appears the instant any internal link is clicked), this makes route changes feel instant even on cold caches.
+
+### Light-mode contrast pass
+The dark-first design uses tinted text classes (`text-violet-200`, `text-cyan-100`, etc.) on tinted backgrounds — invisible on a white canvas. Rather than touch every component, `globals.css` adds `html:not(.dark) .text-violet-200 { color: <-800 shade> !important }` rules across 16 colour families. Tint-badge readability is solved globally with one CSS layer.
+
+### Auto-merge `marketing-branch` → `main`
+A GitHub Action (`.github/workflows/auto-merge.yml`) listens for pushes to `marketing-branch` and fast-forwards `main` to match (or no-FF merges if histories diverged). Iterating happens on `marketing-branch`; `main` is always the deployed truth. No PRs needed for routine work.
+
 ---
 
 ## 🗺 Roadmap
+
+### Recently shipped
+- [x] **Cross-library analytics** — KPIs + 7 recharts (`/analytics`) + backend `GET /api/analytics/overview`
+- [x] **Per-video Insights tab** — activity timeline, chapter-word density, keyword frequency, speaker share
+- [x] **Side-by-side comparison** (`/compare`) — pick 2-3, multi-series bar chart + topic overlap
+- [x] **Library search + tagging** — `GET /api/search` + `PATCH /api/videos/:id/tags` + tag chip editor
+- [x] **Multi-language translation pass** — `POST /api/videos/:id/translate?lang=` (11 languages, RTL, cached)
+- [x] **Action items + open questions** — extracted by the same map-reduce summariser
+- [x] **Marketing project dashboard** (`/marketing`) — KPI / budget / competitive / KW from `marketing/*.md`
+- [x] **Public share links** — frontend share menu with copy-link · Web Share API · Print-to-PDF
+- [x] **Modern UX layer** — landing splash · ⌘K command palette · onboarding tour · light/dark theme · nav-progress bar
+- [x] **Production deployment** — Vercel (frontend) + Hugging Face Space (backend), $0 / month
+- [x] **CI** — `marketing-branch` → `main` GitHub Action auto-merge
 
 ### Production hardening
 - [ ] PostgreSQL swap (`DATABASE_URL=postgresql+asyncpg://…`)
@@ -660,14 +975,17 @@ Extracted keyframes are written under `MEDIA_DIR` and served via FastAPI's `Stat
 - [ ] Authentication (NextAuth + FastAPI JWT) and per-user libraries
 - [ ] Per-user rate limits and quotas
 - [ ] OpenTelemetry tracing across pipeline stages
+- [ ] Persistent disk on HF Space (currently ephemeral on free tier)
+- [ ] yt-dlp cookies workaround for cloud-IP YouTube anti-bot
 
 ### Feature expansion
 - [ ] Speaker diarisation (pyannote-audio)
-- [ ] Multi-language translation pass
-- [ ] Embeddings + semantic transcript search
+- [ ] Embeddings + semantic transcript search (replace LIKE-based search)
+- [ ] OCR on keyframes (Tesseract or Gemini-vision second pass)
 - [ ] Automatic clip generation from detected events
-- [ ] Public share links for analyses
 - [ ] Slack / Notion / Linear export integrations
+- [ ] Audio-only sources (podcasts, mp3 URLs) — first-class support
+- [ ] Multi-tenant tag namespaces
 
 ---
 
