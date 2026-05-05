@@ -84,3 +84,4 @@ coverage/
 media/
 .vercel
 .env*.local
+hf-vidiq-backend/
