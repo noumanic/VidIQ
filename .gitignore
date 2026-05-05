@@ -82,3 +82,5 @@ coverage/
 *.backup
 *.orig
 media/
+.vercel
+.env*.local
