@@ -10,15 +10,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.models.video import Video, ChatMessage
+from app.models.video import Video, ChatMessage, Translation
 from app.schemas.video import (
     AnalyzeRequest,
     ChatMessageDTO,
     ChatRequest,
+    TagsUpdateRequest,
+    TranslationResponse,
     VideoDetailDTO,
     VideoSummaryDTO,
 )
 from app.services import qa as qa_svc
+from app.services import translate as translate_svc
 from app.services.pipeline import run_youtube_pipeline
 
 
@@ -99,6 +102,7 @@ async def get_video(video_id: str, db: Annotated[AsyncSession, Depends(get_db)])
         "progress": v.progress,
         "stage": v.stage,
         "error": v.error,
+        "tags": v.tags or [],
         "created_at": v.created_at,
         "summary": v.summary,
         "transcript": sorted(v.transcript_segments, key=lambda s: s.start),
@@ -171,3 +175,94 @@ async def chat(
     await db.commit()
     await db.refresh(msg)
     return msg
+
+
+# ── Tag CRUD ──────────────────────────────────────────────────────────────
+
+
+@router.patch("/{video_id}/tags", response_model=VideoSummaryDTO)
+async def update_tags(
+    video_id: str,
+    body: TagsUpdateRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Video:
+    v = await db.get(Video, video_id)
+    if not v:
+        raise HTTPException(404, "Video not found")
+    # Sanitise: trim, dedupe (case-insensitive), cap length and count
+    seen: set[str] = set()
+    cleaned: list[str] = []
+    for t in body.tags:
+        if not isinstance(t, str):
+            continue
+        s = t.strip().lower()[:32]
+        if not s or s in seen:
+            continue
+        seen.add(s)
+        cleaned.append(s)
+        if len(cleaned) >= 12:
+            break
+    v.tags = cleaned
+    await db.commit()
+    await db.refresh(v)
+    return v
+
+
+# ── Transcript translation ────────────────────────────────────────────────
+
+
+@router.post("/{video_id}/translate", response_model=TranslationResponse)
+async def translate_transcript(
+    video_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    lang: str = "ur",
+    refresh: bool = False,
+) -> TranslationResponse:
+    """Translate the video's transcript into `lang`. Caches in the
+    `translations` table — returns the cached copy unless ?refresh=true."""
+    lang = (lang or "").strip().lower()[:8]
+    if not lang:
+        raise HTTPException(400, "lang is required")
+
+    v = await db.execute(
+        select(Video)
+        .options(selectinload(Video.transcript_segments))
+        .where(Video.id == video_id)
+    )
+    video = v.scalar_one_or_none()
+    if not video:
+        raise HTTPException(404, "Video not found")
+    if not video.transcript_segments:
+        raise HTTPException(400, "Video has no transcript yet")
+
+    if not refresh:
+        cached_q = await db.execute(
+            select(Translation)
+            .where(Translation.video_id == video_id, Translation.language == lang)
+        )
+        existing = cached_q.scalar_one_or_none()
+        if existing and existing.segments:
+            return TranslationResponse(
+                language=lang, cached=True, segments=existing.segments
+            )
+
+    src_segments = [
+        {"start": s.start, "end": s.end, "text": s.text, "speaker": s.speaker}
+        for s in sorted(video.transcript_segments, key=lambda s: s.start)
+    ]
+    translated = await translate_svc.translate_segments(src_segments, target_language=lang)
+    payload = translate_svc.to_serialisable(translated)
+
+    # Upsert
+    existing_q = await db.execute(
+        select(Translation)
+        .where(Translation.video_id == video_id, Translation.language == lang)
+    )
+    existing = existing_q.scalar_one_or_none()
+    if existing:
+        existing.segments = payload
+    else:
+        db.add(Translation(video_id=video_id, language=lang, segments=payload))
+    await db.commit()
+
+    return TranslationResponse(language=lang, cached=False, segments=payload)

@@ -166,6 +166,8 @@ async def run_youtube_pipeline(
                 chapters=result.get("chapters", []) or [],
                 sentiment=result.get("sentiment"),
                 pseudocode=result.get("pseudocode"),
+                action_items=result.get("action_items", []) or [],
+                questions=result.get("questions", []) or [],
             ))
             await db.execute(delete(DetectedEvent).where(DetectedEvent.video_id == video_id))
             for ev in result.get("events", []) or []:

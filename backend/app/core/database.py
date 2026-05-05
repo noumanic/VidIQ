@@ -29,3 +29,29 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _migrate_added_columns(conn)
+
+
+async def _migrate_added_columns(conn) -> None:
+    """Apply lightweight ALTER TABLE migrations for SQLite — `create_all`
+    only emits CREATE for tables that don't exist, so columns added to
+    existing models stay missing on a pre-existing DB. Runs on every
+    startup; idempotent (NO-OPS when the column already exists)."""
+    from sqlalchemy import text
+
+    new_columns = [
+        ("videos", "tags", "JSON DEFAULT '[]'"),
+        ("summaries", "action_items", "JSON DEFAULT '[]'"),
+        ("summaries", "questions", "JSON DEFAULT '[]'"),
+    ]
+    for table, col, decl in new_columns:
+        # PRAGMA table_info returns one row per column with `name` as 2nd field.
+        rows = await conn.execute(text(f"PRAGMA table_info({table})"))
+        existing = {r[1] for r in rows.fetchall()}
+        if col in existing:
+            continue
+        try:
+            await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {decl}"))
+        except Exception as e:
+            from loguru import logger
+            logger.warning(f"Could not add {table}.{col}: {e}")

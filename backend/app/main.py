@@ -5,7 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.api import analytics as analytics_routes
 from app.api import live as live_routes
+from app.api import search as search_routes
 from app.api import videos as video_routes
 from app.api import ws as ws_routes
 from app.core.config import get_settings
@@ -57,6 +59,8 @@ app.mount("/media", StaticFiles(directory=str(media_dir)), name="media")
 app.include_router(video_routes.router)
 app.include_router(live_routes.router)
 app.include_router(ws_routes.router)
+app.include_router(analytics_routes.router)
+app.include_router(search_routes.router)
 
 
 @app.get("/api/health")

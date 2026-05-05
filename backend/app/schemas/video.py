@@ -47,6 +47,8 @@ class SummaryDTO(BaseModel):
     chapters: list[ChapterDTO] = []
     sentiment: str | None = None
     pseudocode: str | None = None
+    action_items: list[str] = []
+    questions: list[str] = []
 
 
 class VideoSummaryDTO(BaseModel):
@@ -62,6 +64,7 @@ class VideoSummaryDTO(BaseModel):
     progress: float
     stage: str | None = None
     error: str | None = None
+    tags: list[str] = []
     created_at: datetime
 
 
@@ -74,6 +77,33 @@ class VideoDetailDTO(VideoSummaryDTO):
 
 class ChatRequest(BaseModel):
     message: str
+
+
+class TagsUpdateRequest(BaseModel):
+    tags: list[str]
+
+
+class TranslatedSegmentDTO(BaseModel):
+    start: float
+    end: float
+    text: str
+    speaker: str | None = None
+
+
+class TranslationResponse(BaseModel):
+    language: str
+    cached: bool
+    segments: list[TranslatedSegmentDTO]
+
+
+class SearchHitDTO(VideoSummaryDTO):
+    snippet: str | None = None  # transcript excerpt that matched
+
+
+class SearchResponse(BaseModel):
+    query: str
+    total: int
+    results: list[SearchHitDTO]
 
 
 class ChatMessageDTO(BaseModel):
