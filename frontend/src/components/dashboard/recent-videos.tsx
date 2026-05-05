@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Loader2, Video as VideoIcon, Radio, CheckCircle2, AlertCircle, Play } from "lucide-react";
+import { Loader2, Video as VideoIcon, Radio, CheckCircle2, AlertCircle, Play, Tag as TagIcon } from "lucide-react";
 import { api, VideoSummary } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,12 +60,20 @@ export function RecentVideos() {
   );
 }
 
-export function VideoCard({ v, index = 0 }: { v: VideoSummary; index?: number }) {
+export function VideoCard({
+  v,
+  index = 0,
+  snippet,
+}: {
+  v: VideoSummary;
+  index?: number;
+  snippet?: string;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ delay: index * 0.025, duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
     >
       <Link href={`/videos/${v.id}`} className="block">
         <Card className="group relative overflow-hidden border-white/[0.06] transition-all duration-300 hover:-translate-y-1 hover:border-violet-400/30 hover:shadow-2xl hover:shadow-violet-950/40">
@@ -75,7 +83,8 @@ export function VideoCard({ v, index = 0 }: { v: VideoSummary; index?: number })
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={v.thumbnail}
-                alt=""
+                alt={v.title ? `Thumbnail for ${v.title}` : "Video thumbnail"}
+                loading="lazy"
                 className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
             ) : (
@@ -116,6 +125,31 @@ export function VideoCard({ v, index = 0 }: { v: VideoSummary; index?: number })
               <span className="line-clamp-1">{v.channel || "—"}</span>
               <span className="shrink-0">{relativeTime(v.created_at)}</span>
             </div>
+
+            {snippet && (
+              <p className="mt-2 line-clamp-2 rounded-md border border-violet-400/20 bg-violet-500/[0.05] p-2 text-[11px] leading-snug text-muted-foreground">
+                {snippet}
+              </p>
+            )}
+
+            {(v.tags?.length ?? 0) > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {v.tags!.slice(0, 4).map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                  >
+                    <TagIcon className="h-2.5 w-2.5" />
+                    {t}
+                  </span>
+                ))}
+                {(v.tags?.length ?? 0) > 4 && (
+                  <span className="rounded-full bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    +{v.tags!.length - 4}
+                  </span>
+                )}
+              </div>
+            )}
 
             {(v.status === "processing" || v.status === "live") && (
               <div className="mt-3 space-y-1">

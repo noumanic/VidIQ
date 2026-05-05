@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, ExternalLink, Trash2, Radio, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { VideoDetail } from "@/lib/api";
@@ -11,6 +11,8 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatTimestamp, relativeTime } from "@/lib/utils";
+import { ShareMenu } from "./share-menu";
+import { TagEditor } from "./tag-editor";
 
 export function VideoHeader({ video }: { video: VideoDetail }) {
   const qc = useQueryClient();
@@ -34,7 +36,7 @@ export function VideoHeader({ video }: { video: VideoDetail }) {
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.18 }}
       className="flex flex-wrap items-start justify-between gap-4"
     >
       <div className="min-w-0 flex-1">
@@ -70,9 +72,12 @@ export function VideoHeader({ video }: { video: VideoDetail }) {
             </Badge>
           ) : null}
         </div>
+        <div className="mt-3 print-hide">
+          <TagEditor video={video} />
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 print-hide">
         {video.status === "live" ? (
           <Button
             variant="destructive"
@@ -83,6 +88,7 @@ export function VideoHeader({ video }: { video: VideoDetail }) {
             Stop live
           </Button>
         ) : null}
+        <ShareMenu video={video} />
         <Button variant="outline" size="sm" asChild>
           <a href={video.source_url} target="_blank" rel="noreferrer">
             <ExternalLink className="h-4 w-4" /> Source

@@ -17,7 +17,7 @@ export function EventsPanel({ video, onSeek }: { video: VideoDetail; onSeek: (s:
   }
 
   return (
-    <ScrollArea className="h-[640px] pr-2">
+    <ScrollArea className="h-[calc(100vh-360px)] min-h-[440px] max-h-[760px] pr-2">
       <ol className="relative ml-3 border-l border-border space-y-4 pl-6 py-2">
         {video.events.map((e, i) => {
           const Icon = ICONS[e.severity] ?? Info;

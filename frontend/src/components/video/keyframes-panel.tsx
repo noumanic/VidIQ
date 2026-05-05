@@ -16,7 +16,7 @@ export function KeyframesPanel({ video, onSeek }: { video: VideoDetail; onSeek: 
   }
 
   return (
-    <ScrollArea className="h-[640px] pr-2">
+    <ScrollArea className="h-[calc(100vh-360px)] min-h-[440px] max-h-[760px] pr-2">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {video.keyframes.map((k, i) => (
           <motion.button
@@ -31,7 +31,8 @@ export function KeyframesPanel({ video, onSeek }: { video: VideoDetail; onSeek: 
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={mediaUrl(k.image_path)}
-                alt=""
+                alt={k.caption || `Keyframe at ${formatTimestamp(k.timestamp)}`}
+                loading="lazy"
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute bottom-2 left-2 rounded-md bg-black/70 px-2 py-0.5 text-[11px] font-mono text-white">
