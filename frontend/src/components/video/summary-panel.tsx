@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles, ListChecks, Tag, BookOpen, SmilePlus, CheckSquare, HelpCircle } from "lucide-react";
+import { Sparkles, ListChecks, Tag, BookOpen, SmilePlus } from "lucide-react";
 import type { VideoDetail } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ export function SummaryPanel({ video, onSeek }: { video: VideoDetail; onSeek: (s
   }
 
   return (
-    <ScrollArea className="h-[calc(100vh-360px)] min-h-[440px] max-h-[760px] pr-2">
+    <ScrollArea className="h-[640px] pr-2">
       <div className="space-y-4">
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="overflow-hidden">
@@ -64,56 +64,6 @@ export function SummaryPanel({ video, onSeek }: { video: VideoDetail; onSeek: (s
                       {i + 1}
                     </span>
                     <span className="leading-relaxed">{kp}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {s.action_items?.length ? (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CheckSquare className="h-4 w-4 text-emerald-300" /> Action items
-                <Badge variant="outline" className="ml-auto border-emerald-400/30 bg-emerald-500/10 text-emerald-200">
-                  {s.action_items.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2.5">
-                {s.action_items.map((it, i) => (
-                  <li key={i} className="flex items-start gap-3 text-sm">
-                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-emerald-400/30 bg-emerald-500/10">
-                      <CheckSquare className="h-3 w-3 text-emerald-300" />
-                    </span>
-                    <span className="leading-relaxed">{it}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {s.questions?.length ? (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <HelpCircle className="h-4 w-4 text-amber-300" /> Open questions
-                <Badge variant="outline" className="ml-auto border-amber-400/30 bg-amber-500/10 text-amber-200">
-                  {s.questions.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2.5">
-                {s.questions.map((q, i) => (
-                  <li key={i} className="flex items-start gap-3 text-sm">
-                    <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-amber-400/30 bg-amber-500/10 text-[10px] font-semibold text-amber-200">
-                      ?
-                    </span>
-                    <span className="leading-relaxed text-foreground/90">{q}</span>
                   </li>
                 ))}
               </ul>

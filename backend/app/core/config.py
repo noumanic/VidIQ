@@ -3,14 +3,9 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# Absolute path to backend/.env so settings load regardless of cwd
-# (e.g. uvicorn launched from the repo root with --app-dir backend).
-_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=str(_ENV_FILE), env_file_encoding="utf-8", extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
     # Provider selection: gemini | openai | stub

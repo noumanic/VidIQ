@@ -14,7 +14,6 @@ export type VideoSummary = {
   progress: number;
   stage: string | null;
   error: string | null;
-  tags: string[];
   created_at: string;
 };
 
@@ -26,8 +25,6 @@ export type Summary = {
   chapters: Chapter[];
   sentiment: string | null;
   pseudocode: string | null;
-  action_items: string[];
-  questions: string[];
 };
 export type TranscriptSegment = { start: number; end: number; text: string; speaker: string | null };
 export type Keyframe = { timestamp: number; image_path: string; caption: string | null; tags: string[] };
@@ -50,52 +47,6 @@ export type ChatMessage = {
   content: string;
   citations: { timestamp: number; text: string }[];
   created_at: string;
-};
-
-export type TranslatedSegment = {
-  start: number;
-  end: number;
-  text: string;
-  speaker: string | null;
-};
-export type TranslationResponse = {
-  language: string;
-  cached: boolean;
-  segments: TranslatedSegment[];
-};
-
-export type SearchHit = VideoSummary & { snippet: string | null };
-export type SearchResponse = {
-  query: string;
-  total: number;
-  results: SearchHit[];
-};
-
-export type AnalyticsKPI = {
-  videos_total: number;
-  videos_completed: number;
-  videos_processing: number;
-  videos_failed: number;
-  hours_processed: number;
-  events_detected: number;
-  keyframes_extracted: number;
-  transcript_segments: number;
-  chat_messages: number;
-  avg_duration_sec: number;
-  completion_rate: number;
-};
-export type LabelValue = { label: string; value: number };
-export type TimePoint = { date: string; count: number };
-export type AnalyticsOverview = {
-  kpi: AnalyticsKPI;
-  daily_volume: TimePoint[];
-  source_mix: LabelValue[];
-  status_breakdown: LabelValue[];
-  top_topics: LabelValue[];
-  event_categories: LabelValue[];
-  event_severity: LabelValue[];
-  sentiment_distribution: LabelValue[];
-  duration_buckets: LabelValue[];
 };
 
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -158,32 +109,12 @@ export const api = {
 
   deleteVideo: (id: string) => jsonFetch<void>(`/api/videos/${id}`, { method: "DELETE" }),
 
-  updateTags: (id: string, tags: string[]) =>
-    jsonFetch<VideoSummary>(`/api/videos/${id}/tags`, {
-      method: "PATCH",
-      body: JSON.stringify({ tags }),
-    }),
-
-  translate: (id: string, lang: string, refresh = false) =>
-    jsonFetch<TranslationResponse>(
-      `/api/videos/${id}/translate?lang=${encodeURIComponent(lang)}${refresh ? "&refresh=true" : ""}`,
-      { method: "POST" },
-    ),
-
-  search: (q: string, limit = 20) =>
-    jsonFetch<SearchResponse>(
-      `/api/search?q=${encodeURIComponent(q)}&limit=${limit}`,
-    ),
-
   chatHistory: (id: string) => jsonFetch<ChatMessage[]>(`/api/videos/${id}/chat`),
   chat: (id: string, message: string) =>
     jsonFetch<ChatMessage>(`/api/videos/${id}/chat`, {
       method: "POST",
       body: JSON.stringify({ message }),
     }),
-
-  analyticsOverview: (days = 30) =>
-    jsonFetch<AnalyticsOverview>(`/api/analytics/overview?days=${days}`),
 
   startLive: (url: string, chunk_seconds = 30) =>
     jsonFetch<VideoSummary>("/api/live", {

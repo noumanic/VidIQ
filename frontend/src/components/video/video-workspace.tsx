@@ -2,11 +2,17 @@
 
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { Sparkles, ListChecks, ScanEye, MessageSquareText, AlertTriangle, FileText, Code2 } from "lucide-react";
 import type { VideoDetail } from "@/lib/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProgressPanel } from "./progress-panel";
 import { VideoPlayer, type VideoPlayerHandle } from "./video-player";
+import { SummaryPanel } from "./summary-panel";
+import { TranscriptPanel } from "./transcript-panel";
+import { KeyframesPanel } from "./keyframes-panel";
+import { EventsPanel } from "./events-panel";
+import { ChatPanel } from "./chat-panel";
 import { VideoHeader } from "./video-header";
-import { WorkspaceTabs } from "./workspace-tabs";
 
 export function VideoWorkspace({ video }: { video: VideoDetail }) {
   const playerRef = useRef<VideoPlayerHandle>(null);
@@ -34,12 +40,31 @@ export function VideoWorkspace({ video }: { video: VideoDetail }) {
         </motion.div>
 
         <div className="lg:col-span-5">
-          <WorkspaceTabs
-            video={video}
-            tab={tab}
-            onTabChange={setTab}
-            onSeek={seek}
-          />
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList className="w-full justify-start overflow-x-auto">
+              <TabsTrigger value="summary"><Sparkles className="h-4 w-4" /> Summary</TabsTrigger>
+              <TabsTrigger value="transcript"><FileText className="h-4 w-4" /> Transcript</TabsTrigger>
+              <TabsTrigger value="frames"><ScanEye className="h-4 w-4" /> Frames</TabsTrigger>
+              <TabsTrigger value="events"><AlertTriangle className="h-4 w-4" /> Events</TabsTrigger>
+              <TabsTrigger value="chat"><MessageSquareText className="h-4 w-4" /> Chat</TabsTrigger>
+              {video.summary?.pseudocode ? (
+                <TabsTrigger value="pseudo"><Code2 className="h-4 w-4" /> Code</TabsTrigger>
+              ) : null}
+            </TabsList>
+
+            <TabsContent value="summary"><SummaryPanel video={video} onSeek={seek} /></TabsContent>
+            <TabsContent value="transcript"><TranscriptPanel video={video} onSeek={seek} /></TabsContent>
+            <TabsContent value="frames"><KeyframesPanel video={video} onSeek={seek} /></TabsContent>
+            <TabsContent value="events"><EventsPanel video={video} onSeek={seek} /></TabsContent>
+            <TabsContent value="chat"><ChatPanel video={video} onSeek={seek} /></TabsContent>
+            {video.summary?.pseudocode ? (
+              <TabsContent value="pseudo">
+                <pre className="rounded-2xl border bg-muted/40 p-4 text-xs overflow-x-auto whitespace-pre-wrap">
+                  {video.summary.pseudocode}
+                </pre>
+              </TabsContent>
+            ) : null}
+          </Tabs>
         </div>
       </div>
     </div>

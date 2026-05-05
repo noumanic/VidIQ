@@ -191,8 +191,6 @@ Produce a JSON object with EXACTLY this shape:
     {{"start": <seconds>, "end": <seconds>, "title": "concise descriptive title"}}
   ],
   "sentiment": "positive|neutral|negative|mixed",
-  "action_items": ["0-6 concrete actions the viewer should take next, imperative tense, derived strictly from the content"],
-  "questions": ["0-6 important open or rhetorical questions raised in the video"],
   "events": [
     {{"timestamp": <seconds>, "title": "<short>", "description": "<one sentence>",
       "severity": "info|notice|warning",
@@ -204,10 +202,6 @@ Rules:
 - 3 to 8 chapters covering the full video, no gaps. First chapter starts at 0.
 - 5 to 15 events surfacing the most notable moments (demos, claims, definitions,
   actions, examples, questions, insights). Skip small talk.
-- action_items: only include if the video genuinely teaches something the viewer
-  should DO. Empty array is fine. Each item must be a single short imperative.
-- questions: surface questions the speaker poses or that the content leaves open.
-  Empty array is fine.
 - All timestamps in SECONDS as numbers.
 - Do not invent content beyond the transcript and frame captions.
 - Output JSON only.
@@ -269,9 +263,7 @@ Synthesise:
   "overview": "3-5 sentence overview that flows naturally",
   "key_points": ["6-10 specific takeaways, ordered by importance, no duplicates"],
   "topics": ["3-7 short lowercase topic tags"],
-  "sentiment": "positive|neutral|negative|mixed",
-  "action_items": ["0-6 concrete imperative actions the viewer should take next"],
-  "questions": ["0-6 important open questions raised across the video"]
+  "sentiment": "positive|neutral|negative|mixed"
 }}
 JSON only."""
     return await llm.chat_json(SYSTEM_ANALYST, user)
@@ -347,8 +339,6 @@ async def summarize_video(
     topics: list[str] = []
     chapters: list[dict] = []
     sentiment: str | None = None
-    action_items: list[str] = []
-    questions: list[str] = []
     chunk_events: list[dict] = []
 
     if is_short:
@@ -364,8 +354,6 @@ async def summarize_video(
             sentiment = (r.get("sentiment") or "").strip() or None
             chapters = [c for c in (_coerce_chapter(c) for c in (r.get("chapters") or [])) if c]
             chunk_events = r.get("events") or []
-            action_items = [a for a in (r.get("action_items") or []) if isinstance(a, str) and a.strip()]
-            questions = [q for q in (r.get("questions") or []) if isinstance(q, str) and q.strip()]
         except Exception as e:
             logger.warning(f"All-in-one summarisation failed: {e}")
     else:
@@ -393,8 +381,6 @@ async def summarize_video(
             key_points = [k for k in (synth.get("key_points") or []) if isinstance(k, str) and k.strip()]
             topics = [t for t in (synth.get("topics") or []) if isinstance(t, str) and t.strip()]
             sentiment = (synth.get("sentiment") or "").strip() or None
-            action_items = [a for a in (synth.get("action_items") or []) if isinstance(a, str) and a.strip()]
-            questions = [q for q in (synth.get("questions") or []) if isinstance(q, str) and q.strip()]
         except Exception as e:
             logger.warning(f"Final synthesis failed: {e}")
 
@@ -445,8 +431,6 @@ async def summarize_video(
         "topics": topics[:7],
         "chapters": chapters,
         "sentiment": sentiment or "neutral",
-        "action_items": action_items[:6],
-        "questions": questions[:6],
         "events": events,
         "pseudocode": pseudocode,
     }

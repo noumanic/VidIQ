@@ -57,7 +57,7 @@ export function ChatPanel({ video, onSeek }: { video: VideoDetail; onSeek: (s: n
   }
 
   return (
-    <div className="flex h-[calc(100vh-360px)] min-h-[440px] max-h-[760px] flex-col rounded-2xl border bg-card">
+    <div className="flex h-[640px] flex-col rounded-2xl border bg-card">
       <ScrollArea className="flex-1">
         <div ref={scrollRef} className="p-4 space-y-4">
           {messages.length === 0 ? (

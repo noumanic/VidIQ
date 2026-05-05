@@ -19,7 +19,6 @@ class Video(Base):
     progress: Mapped[float] = mapped_column(Float, default=0.0)
     stage: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    tags: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -53,8 +52,6 @@ class Summary(Base):
     chapters: Mapped[list] = mapped_column(JSON, default=list)
     sentiment: Mapped[str | None] = mapped_column(String(40), nullable=True)
     pseudocode: Mapped[str | None] = mapped_column(Text, nullable=True)
-    action_items: Mapped[list] = mapped_column(JSON, default=list)
-    questions: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     video: Mapped[Video] = relationship(back_populates="summary")
@@ -98,16 +95,6 @@ class DetectedEvent(Base):
     category: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     video: Mapped[Video] = relationship(back_populates="events")
-
-
-class Translation(Base):
-    __tablename__ = "translations"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    video_id: Mapped[str] = mapped_column(ForeignKey("videos.id"))
-    language: Mapped[str] = mapped_column(String(8))  # ISO 639-1 code, e.g. "ur"
-    segments: Mapped[list] = mapped_column(JSON, default=list)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class ChatMessage(Base):

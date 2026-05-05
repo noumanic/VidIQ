@@ -21,7 +21,7 @@ export function FeatureCard({
       initial={{ opacity: 0, y: 12 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.22, delay: delay / 2500, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.5, delay: delay / 1000, ease: [0.16, 1, 0.3, 1] }}
       whileHover={{ y: -4 }}
       className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-card/40 p-6 backdrop-blur-sm transition-colors hover:border-white/[0.12]"
     >

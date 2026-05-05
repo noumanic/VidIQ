@@ -59,7 +59,7 @@ export default function AnalyzePage() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.18 }}
+          transition={{ duration: 0.5 }}
           className="mb-10 text-center"
         >
           <Badge
@@ -81,7 +81,7 @@ export default function AnalyzePage() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, delay: 0.04 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
         >
           <Card glass className="overflow-hidden">
             <form

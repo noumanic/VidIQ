@@ -38,17 +38,7 @@ backend/*.db
 backend/*.db-journal
 backend/*.sqlite
 backend/*.sqlite3
-# Local dev DB at repo root (created when running uvicorn from project root)
-/vidiq.db
-/vidiq.db-journal
-/*.sqlite
-/*.sqlite3
-# Ignore the bulk reference data (course pptx, etc.) but keep the small
-# rubric files (Project.docx + DM_Competitive_KPI.xlsx + utility scripts).
-data/Course_Content/
-data/*.backup.xlsx
-data/__pycache__/
-.cache/
+data/
 
 # ─── Logs ──────────────────────────────────────────────────────────────
 *.log
@@ -75,10 +65,3 @@ htmlcov/
 .tox/
 .nyc_output/
 coverage/
-
-# ─── Miscellaneous ─────────────────────────────────────────────────────
-*.bak
-*.tmp
-*.backup
-*.orig
-media/

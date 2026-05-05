@@ -3,8 +3,7 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** The VidIQ logo mark — uses the bundled SVG (vector, scales perfectly
- *  at any size) with a subtle glow halo. */
+/** The VidIQ logo mark. Uses the bundled PNG with a subtle glow halo. */
 export function LogoMark({
   size = 36,
   className,
@@ -26,7 +25,7 @@ export function LogoMark({
         />
       )}
       <Image
-        src="/vidiq_logo_black_bg.svg"
+        src="/vidiq_logo_black_bg.png"
         alt="VidIQ"
         width={size}
         height={size}
@@ -53,7 +52,7 @@ export function LogoSplash({ size = 120 }: { size?: number }) {
         className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/30 blur-md"
       />
       <Image
-        src="/vidiq_logo_black_bg.svg"
+        src="/vidiq_logo_black_bg.png"
         alt="VidIQ"
         width={size}
         height={size}

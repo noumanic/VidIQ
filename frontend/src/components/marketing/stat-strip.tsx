@@ -35,7 +35,7 @@ export function StatStrip() {
           key={it.label}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.02, duration: 0.18 }}
+          transition={{ delay: i * 0.05, duration: 0.4 }}
           className="flex items-center gap-3 rounded-xl px-3 py-2"
         >
           <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.04] ${it.accent}`}>
