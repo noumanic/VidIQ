@@ -1,0 +1,44 @@
+name: Auto-merge marketing-branch → main
+
+# Pushes to marketing-branch are mirrored straight onto main. Fast-forward
+# when histories are linear; fall back to a merge commit if they diverged.
+on:
+  push:
+    branches: [marketing-branch]
+
+# Don't pile up overlapping runs if you push twice in quick succession.
+concurrency:
+  group: auto-merge-marketing
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge marketing-branch into main
+        run: |
+          set -e
+          git fetch origin marketing-branch:refs/remotes/origin/marketing-branch
+          if git merge-base --is-ancestor origin/main origin/marketing-branch; then
+            echo "→ fast-forward main to marketing-branch HEAD"
+            git merge --ff-only origin/marketing-branch
+          else
+            echo "→ histories diverged, creating no-ff merge commit"
+            git merge --no-ff origin/marketing-branch \
+              -m "auto: merge marketing-branch into main [skip ci]"
+          fi
+          git push origin main
