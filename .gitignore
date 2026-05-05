@@ -85,3 +85,10 @@ media/
 .vercel
 .env*.local
 hf-vidiq-backend/
+
+# ─── Office lock files ─────────────────────────────────────────────────
+~$*.pptx
+~$*.docx
+~$*.xlsx
+*.pptx.bak
+*_v[0-9].pptx
