@@ -92,3 +92,8 @@ hf-vidiq-backend/
 ~$*.xlsx
 *.pptx.bak
 *_v[0-9].pptx
+
+# ─── Local agent state / submission bundles ───────────────────────────
+.claude/
+VidIQ_Submission/
+VidIQ_Submission_i*.zip
