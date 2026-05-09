@@ -189,19 +189,8 @@ Hashtag stacks (use one per post — all from `05-social-templates.md` §5):
 
 | # | Day | Format | Caption (paste verbatim) | Hashtag stack | Asset |
 |---|---|---|---|---|---|
-| 1 | D1 Mon | Reel 30s | `You hit play on a 90-minute video and walked away three minutes later.\n\nVidIQ summarises it before your coffee cools.\n\nWatch less. Learn more.\n\nTry free → vidiq-two.vercel.app/analyze` | A | `02-video-ad-script.md` master 30s cut |
-| 2 | D2 Tue | Carousel 5 slides | `How does an AI actually summarise a video? Swipe →\n\nWe break it down: speech-to-text → keyframe extraction → vision captioning → multimodal synthesis. Every claim cites a transcript moment.\n\nSave this for later.` | C | IMG-1 + 4 derived slides |
-| 3 | D3 Wed | Single image | `Cramming for exams? Drop the lecture URL. Get the highlights in under a minute.\n\nFree. No card. No install.\n\nvidiq-two.vercel.app/analyze` | A | IMG-2 |
-| 4 | D4 Thu | Reel 15s | `Watch a 2-hour podcast become 6 chapters.\n\nMultimodal AI that grounds every claim in the source.\n\nLink in bio.` | B | 15s cutdown of master |
-| 5 | D5 Fri | Single image (meme) | `Me: I'll watch it later.\n\nThe video, 2 hours later: still unwatched.\n\nDrop us your watch-later count in the comments 👇` | A | IMG-3 |
-| 6 | D6 Sat | Story (24h) | `Behind the scenes: our team uses VidIQ to study every podcast we cite.\n\nDM us your use case 📬` | C | Photo of team + screen-grab |
-| 7 | D7 Sun | Carousel 4 slides | `5 video genres VidIQ is best at:\n\n1. Lectures\n2. Podcasts\n3. Trading streams\n4. Medical demos\n5. Legal sessions\n\nNot all videos are equal. Save this for later.` | C | IMG-4 |
-| 8 | D8 Mon | Reel 15s | `Live stream → rolling summary in real time.\n\nNo waiting. No re-watching.\n\nvidiq-two.vercel.app/live` | B | 15s screen-rec of /live |
-| 9 | D9 Tue | Single image | `Creators: research your next video in 1/10th the time.\n\nPaste any source URL → get a transcript + chat that cites the exact moment of every claim.\n\nFree.` | B | Screenshot of chat panel |
-| 10 | D10 Wed | Carousel 6 slides | `What's *multimodal* AI? Speech + Vision + Reasoning.\n\nHere's why it matters for video understanding →\n\nSwipe through, save the last slide.` | C | IMG-1 (re-use, alt slides) |
-| 11 | D11 Thu | Single image (quote) | `"I cut my lecture-review time from 2 hours to 8 minutes." — Beta tester, MS-CS\n\nReply with your before/after.` | A | IMG-5 |
-| 12 | D12 Fri | Reel 15s (poll) | `Skip-button or VidIQ summary? You choose.\n\nVote in comments 👇` | A | Split-screen mock |
-| 13 | D13 Sat | Carousel 3 slides | `Before / After: 90-min lecture → 6 timestamped chapters → 3 quoted answers.\n\nReal screenshots from real videos.` | A | IMG-6 + 2 derived |
+
+
 | 14 | D14 Sun | Single image + Story poll | `Trading streams. Crypto streams. Earnings calls. Same engine.\n\nWhat should we cover next? Vote in Story.` | C | Brand graphic + poll sticker |
 
 For days **15–28** (the IG copies of D1–D14): **same captions**, **same images**, just toggle "Post to Instagram" when scheduling. Business Suite will treat the 28 posts as a queued list — that's exactly what KPI #5 + #6 evidence requires.
@@ -234,7 +223,7 @@ Open <https://business.facebook.com/adsmanager>. **Create → Campaign**.
 | **Schedule** | Start D1 of your launch · End +14 days |
 
 Click **Next**.
-
+  
 ### 6.2 Ad Set 1 — Students 🎓
 
 | Field | Value |
