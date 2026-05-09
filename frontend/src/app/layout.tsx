@@ -35,6 +35,10 @@ const SITE_TAGLINE = "AI Video Intelligence";
 const SITE_DESCRIPTION =
   "Turn any YouTube video or live stream into structured intelligence — transcripts, time-stamped summaries, keyframes, event detection and grounded Q&A, powered by multimodal AI.";
 
+const GSC_VERIFICATION = process.env.NEXT_PUBLIC_GSC_VERIFICATION;
+const BING_VERIFICATION = process.env.NEXT_PUBLIC_BING_VERIFICATION;
+const YANDEX_VERIFICATION = process.env.NEXT_PUBLIC_YANDEX_VERIFICATION;
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -99,6 +103,13 @@ export const metadata: Metadata = {
       "max-image-preview": "large",
       "max-video-preview": -1,
     },
+  },
+  verification: {
+    ...(GSC_VERIFICATION ? { google: GSC_VERIFICATION } : {}),
+    ...(YANDEX_VERIFICATION ? { yandex: YANDEX_VERIFICATION } : {}),
+    ...(BING_VERIFICATION
+      ? { other: { "msvalidate.01": BING_VERIFICATION } }
+      : {}),
   },
   icons: {
     icon: [
