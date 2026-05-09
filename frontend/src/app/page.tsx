@@ -181,6 +181,52 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ─── DEMO VIDEO ─────────────────────────────────────── */}
+      <section className="relative overflow-hidden">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 opacity-50"
+          style={{
+            background:
+              "radial-gradient(ellipse 50% 40% at 50% 50%, hsl(310 80% 60% / 0.10), transparent 70%)",
+          }}
+        />
+        <div className="container py-16 md:py-20">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-fuchsia-400">
+              How it works
+            </p>
+            <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+              Watch VidIQ run end-to-end
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Paste a YouTube URL → transcript, keyframes, summary and a grounded chat — all in one pipeline.
+            </p>
+          </div>
+
+          <div className="mx-auto max-w-4xl">
+            <div className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-card/40 shadow-2xl shadow-violet-500/10 ring-1 ring-violet-500/20 backdrop-blur-sm">
+              <video
+                className="block w-full"
+                controls
+                preload="metadata"
+                playsInline
+                poster="/vidiq_logo_black_bg.png"
+              >
+                <source src="/introductory-video.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+                <a href="/introductory-video.mp4" className="text-violet-400 underline">
+                  Download the walkthrough
+                </a>
+              </video>
+            </div>
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              ▶  Click anywhere on the player to start the walkthrough · 60 seconds · no audio required.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ─── FEATURES ───────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <div
