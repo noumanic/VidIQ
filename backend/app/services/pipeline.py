@@ -92,6 +92,17 @@ async def _mark_needs_upload(
     )
 
 
+def _write_summary(summary: Summary, result: dict) -> None:
+    summary.overview = result.get("overview", "")
+    summary.key_points = result.get("key_points", []) or []
+    summary.topics = result.get("topics", []) or []
+    summary.chapters = result.get("chapters", []) or []
+    summary.sentiment = result.get("sentiment")
+    summary.pseudocode = result.get("pseudocode")
+    summary.action_items = result.get("action_items", []) or []
+    summary.questions = result.get("questions", []) or []
+
+
 async def _emit(video_id: str, *, stage: str, progress: float, message: str = "") -> None:
     payload = {
         "video_id": video_id,
@@ -280,19 +291,11 @@ async def run_youtube_pipeline(
         async with SessionLocal() as db:
             existing = await db.get(Summary, video_id)
             if existing:
-                await db.delete(existing)
-                await db.commit()
-            db.add(Summary(
-                video_id=video_id,
-                overview=result.get("overview", ""),
-                key_points=result.get("key_points", []) or [],
-                topics=result.get("topics", []) or [],
-                chapters=result.get("chapters", []) or [],
-                sentiment=result.get("sentiment"),
-                pseudocode=result.get("pseudocode"),
-                action_items=result.get("action_items", []) or [],
-                questions=result.get("questions", []) or [],
-            ))
+                _write_summary(existing, result)
+            else:
+                summary = Summary(video_id=video_id, overview="")
+                _write_summary(summary, result)
+                db.add(summary)
             await db.execute(delete(DetectedEvent).where(DetectedEvent.video_id == video_id))
             for ev in result.get("events", []) or []:
                 db.add(DetectedEvent(
@@ -396,19 +399,11 @@ async def run_transcript_pipeline(
     async with SessionLocal() as db:
         existing = await db.get(Summary, video_id)
         if existing:
-            await db.delete(existing)
-            await db.commit()
-        db.add(Summary(
-            video_id=video_id,
-            overview=result.get("overview", ""),
-            key_points=result.get("key_points", []) or [],
-            topics=result.get("topics", []) or [],
-            chapters=result.get("chapters", []) or [],
-            sentiment=result.get("sentiment"),
-            pseudocode=result.get("pseudocode"),
-            action_items=result.get("action_items", []) or [],
-            questions=result.get("questions", []) or [],
-        ))
+            _write_summary(existing, result)
+        else:
+            summary = Summary(video_id=video_id, overview="")
+            _write_summary(summary, result)
+            db.add(summary)
         await db.execute(delete(DetectedEvent).where(DetectedEvent.video_id == video_id))
         for ev in result.get("events", []) or []:
             db.add(DetectedEvent(
@@ -481,19 +476,11 @@ async def run_uploaded_media_pipeline(
     async with SessionLocal() as db:
         existing = await db.get(Summary, video_id)
         if existing:
-            await db.delete(existing)
-            await db.commit()
-        db.add(Summary(
-            video_id=video_id,
-            overview=result.get("overview", ""),
-            key_points=result.get("key_points", []) or [],
-            topics=result.get("topics", []) or [],
-            chapters=result.get("chapters", []) or [],
-            sentiment=result.get("sentiment"),
-            pseudocode=result.get("pseudocode"),
-            action_items=result.get("action_items", []) or [],
-            questions=result.get("questions", []) or [],
-        ))
+            _write_summary(existing, result)
+        else:
+            summary = Summary(video_id=video_id, overview="")
+            _write_summary(summary, result)
+            db.add(summary)
         await db.execute(delete(DetectedEvent).where(DetectedEvent.video_id == video_id))
         for ev in result.get("events", []) or []:
             db.add(DetectedEvent(
