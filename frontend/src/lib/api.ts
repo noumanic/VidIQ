@@ -10,12 +10,15 @@ export type VideoSummary = {
   channel: string | null;
   duration_sec: number | null;
   thumbnail: string | null;
-  status: "pending" | "processing" | "completed" | "failed" | "live";
+  status: "pending" | "processing" | "completed" | "failed" | "live" | "needs_upload";
   progress: number;
   stage: string | null;
   error: string | null;
   tags: string[];
   created_at: string;
+  upload_required_reason?: string | null;
+  upload_message?: string | null;
+  available_actions?: string[];
 };
 
 export type Chapter = { start: number; end: number; title: string };
@@ -130,6 +133,19 @@ async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
+async function formFetch<T>(path: string, body: FormData): Promise<T> {
+  const r = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    body,
+    cache: "no-store",
+  });
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    throw new Error(`${r.status} ${r.statusText}${text ? ` — ${text}` : ""}`);
+  }
+  return (await r.json()) as T;
+}
+
 export const api = {
   health: () =>
     jsonFetch<{
@@ -155,6 +171,28 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ url, ...opts }),
     }),
+
+  submitTranscript: (
+    id: string,
+    transcript: string,
+    opts?: { title?: string; domain?: string; extract_pseudocode?: boolean },
+  ) =>
+    jsonFetch<VideoSummary>(`/api/videos/${id}/transcript`, {
+      method: "POST",
+      body: JSON.stringify({ transcript, ...opts }),
+    }),
+
+  uploadSource: (
+    id: string,
+    file: File,
+    opts?: { domain?: string; extract_pseudocode?: boolean },
+  ) => {
+    const body = new FormData();
+    body.append("file", file);
+    if (opts?.domain) body.append("domain", opts.domain);
+    if (opts?.extract_pseudocode) body.append("extract_pseudocode", "true");
+    return formFetch<VideoSummary>(`/api/videos/${id}/upload`, body);
+  },
 
   deleteVideo: (id: string) => jsonFetch<void>(`/api/videos/${id}`, { method: "DELETE" }),
 

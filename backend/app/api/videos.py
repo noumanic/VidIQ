@@ -2,30 +2,65 @@
 
 import asyncio
 import uuid
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
+from app.core.config import get_settings
 from app.models.video import Video, ChatMessage, Translation
 from app.schemas.video import (
     AnalyzeRequest,
     ChatMessageDTO,
     ChatRequest,
     TagsUpdateRequest,
+    TranscriptSubmitRequest,
     TranslationResponse,
     VideoDetailDTO,
     VideoSummaryDTO,
 )
 from app.services import qa as qa_svc
 from app.services import translate as translate_svc
-from app.services.pipeline import run_youtube_pipeline
+from app.services.pipeline import (
+    run_transcript_pipeline,
+    run_uploaded_media_pipeline,
+    run_youtube_pipeline,
+)
 
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
+settings = get_settings()
+
+UPLOAD_REQUIRED_MESSAGE = (
+    "YouTube blocked automated access from the hosted backend. For full analysis, "
+    "use one of the upload or transcript options."
+)
+UPLOAD_ACTIONS = ["paste_transcript", "upload_transcript", "upload_audio", "upload_video"]
+
+
+def _upload_required_fields(v: Video) -> dict:
+    if v.status != "needs_upload":
+        return {
+            "upload_required_reason": None,
+            "upload_message": None,
+            "available_actions": [],
+        }
+    reason = (v.error or "youtube_transcript_unavailable_or_blocked").split(":", 1)[0]
+    return {
+        "upload_required_reason": reason,
+        "upload_message": UPLOAD_REQUIRED_MESSAGE,
+        "available_actions": UPLOAD_ACTIONS,
+    }
+
+
+def _is_transcript_upload(file: UploadFile) -> bool:
+    suffix = Path(file.filename or "").suffix.lower()
+    content_type = (file.content_type or "").lower()
+    return suffix in {".txt", ".srt", ".vtt", ".md"} or content_type.startswith("text/")
 
 
 @router.post("", response_model=VideoSummaryDTO, status_code=202)
@@ -68,6 +103,127 @@ async def _run_pipeline_safe(vid_id: str, url: str, domain: str | None, extract_
         pass
 
 
+async def _mark_background_failed(vid_id: str, error: Exception) -> None:
+    async with SessionLocal() as db:
+        v = await db.get(Video, vid_id)
+        if v:
+            v.status = "failed"
+            v.stage = "error"
+            v.error = str(error)
+            await db.commit()
+
+
+async def _run_transcript_safe(
+    vid_id: str,
+    transcript: str,
+    title: str | None,
+    domain: str | None,
+    extract_pseudocode: bool,
+) -> None:
+    try:
+        await run_transcript_pipeline(
+            vid_id,
+            transcript,
+            title=title,
+            domain=domain,
+            extract_pseudocode=extract_pseudocode,
+        )
+    except Exception as e:
+        await _mark_background_failed(vid_id, e)
+
+
+async def _run_uploaded_media_safe(
+    vid_id: str,
+    path: Path,
+    is_video: bool,
+    domain: str | None,
+    extract_pseudocode: bool,
+) -> None:
+    try:
+        await run_uploaded_media_pipeline(
+            vid_id,
+            path,
+            is_video=is_video,
+            domain=domain,
+            extract_pseudocode=extract_pseudocode,
+        )
+    except Exception as e:
+        await _mark_background_failed(vid_id, e)
+
+
+@router.post("/{video_id}/transcript", response_model=VideoSummaryDTO, status_code=202)
+async def submit_transcript(
+    video_id: str,
+    body: TranscriptSubmitRequest,
+    background: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Video:
+    v = await db.get(Video, video_id)
+    if not v:
+        raise HTTPException(404, "Video not found")
+    if not body.transcript.strip():
+        raise HTTPException(400, "transcript is required")
+    v.status = "processing"
+    v.stage = "queued"
+    v.progress = 0.05
+    v.error = None
+    await db.commit()
+    await db.refresh(v)
+    background.add_task(
+        _run_transcript_safe,
+        video_id,
+        body.transcript,
+        body.title,
+        body.domain,
+        body.extract_pseudocode,
+    )
+    return v
+
+
+@router.post("/{video_id}/upload", response_model=VideoSummaryDTO, status_code=202)
+async def upload_analysis_source(
+    video_id: str,
+    background: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    file: UploadFile = File(...),
+    domain: str | None = Form(None),
+    extract_pseudocode: bool = Form(False),
+) -> Video:
+    v = await db.get(Video, video_id)
+    if not v:
+        raise HTTPException(404, "Video not found")
+
+    upload_dir = settings.media_path / video_id / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    suffix = Path(file.filename or "upload").suffix
+    target = upload_dir / f"source{suffix or '.bin'}"
+    data = await file.read()
+    if not data:
+        raise HTTPException(400, "uploaded file is empty")
+    target.write_bytes(data)
+
+    v.status = "processing"
+    v.source_type = "upload"
+    v.stage = "queued"
+    v.progress = 0.05
+    v.error = None
+    await db.commit()
+    await db.refresh(v)
+
+    if _is_transcript_upload(file):
+        transcript = data.decode("utf-8", errors="ignore")
+        background.add_task(_run_transcript_safe, video_id, transcript, v.title, domain, extract_pseudocode)
+    else:
+        is_video = (file.content_type or "").lower().startswith("video/") or suffix.lower() in {
+            ".mp4",
+            ".mov",
+            ".mkv",
+            ".webm",
+        }
+        background.add_task(_run_uploaded_media_safe, video_id, target, is_video, domain, extract_pseudocode)
+    return v
+
+
 @router.get("", response_model=list[VideoSummaryDTO])
 async def list_videos(db: Annotated[AsyncSession, Depends(get_db)]) -> list[Video]:
     res = await db.execute(select(Video).order_by(desc(Video.created_at)).limit(100))
@@ -104,6 +260,7 @@ async def get_video(video_id: str, db: Annotated[AsyncSession, Depends(get_db)])
         "error": v.error,
         "tags": v.tags or [],
         "created_at": v.created_at,
+        **_upload_required_fields(v),
         "summary": v.summary,
         "transcript": sorted(v.transcript_segments, key=lambda s: s.start),
         "keyframes": sorted(v.keyframes, key=lambda k: k.timestamp),

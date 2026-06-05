@@ -1,11 +1,17 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { CheckCircle2, AlertCircle, Loader2, Radio } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, Radio, FileText, Upload, ClipboardPaste } from "lucide-react";
+import { toast } from "sonner";
 import type { VideoDetail } from "@/lib/api";
+import { api } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const STAGES = [
   { key: "metadata", label: "Metadata" },
@@ -20,6 +26,105 @@ const STAGES = [
 ];
 
 export function ProgressPanel({ video, live = false }: { video: VideoDetail; live?: boolean }) {
+  const router = useRouter();
+  const [transcript, setTranscript] = useState("");
+  const transcriptFileRef = useRef<HTMLInputElement>(null);
+  const mediaFileRef = useRef<HTMLInputElement>(null);
+
+  const pasteMutation = useMutation({
+    mutationFn: () => api.submitTranscript(video.id, transcript),
+    onSuccess: () => {
+      toast.success("Transcript submitted");
+      router.refresh();
+    },
+    onError: (e: Error) => toast.error("Could not submit transcript", { description: e.message }),
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => api.uploadSource(video.id, file),
+    onSuccess: () => {
+      toast.success("Upload received");
+      router.refresh();
+    },
+    onError: (e: Error) => toast.error("Upload failed", { description: e.message }),
+  });
+
+  if (video.status === "needs_upload") {
+    const busy = pasteMutation.isPending || uploadMutation.isPending;
+    return (
+      <Card className="border-amber-400/30 bg-amber-500/5 p-5">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 text-amber-400" />
+          <div className="min-w-0 flex-1 space-y-4">
+            <div>
+              <div className="text-sm font-semibold">Upload or transcript required</div>
+              <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {video.upload_message ||
+                  "YouTube blocked automated access from the hosted backend. For full analysis, paste a transcript, upload a transcript file, upload audio/video, or try another public video with available captions."}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Paste transcript
+              </label>
+              <textarea
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                disabled={busy}
+                rows={5}
+                className="min-h-28 w-full resize-y rounded-lg border border-border bg-background/60 px-3 py-2 text-sm outline-none transition focus:border-primary"
+                placeholder="Paste transcript text here..."
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy || !transcript.trim()}
+                onClick={() => pasteMutation.mutate()}
+              >
+                {pasteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardPaste className="h-4 w-4" />}
+                Analyze pasted transcript
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={transcriptFileRef}
+                type="file"
+                accept=".txt,.srt,.vtt,.md,text/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadMutation.mutate(file);
+                  e.currentTarget.value = "";
+                }}
+              />
+              <input
+                ref={mediaFileRef}
+                type="file"
+                accept="audio/*,video/*,.mp3,.wav,.m4a,.webm,.mp4,.mov,.mkv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadMutation.mutate(file);
+                  e.currentTarget.value = "";
+                }}
+              />
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => transcriptFileRef.current?.click()}>
+                <FileText className="h-4 w-4" />
+                Upload transcript
+              </Button>
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => mediaFileRef.current?.click()}>
+                {uploadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Upload audio/video
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   if (video.status === "failed") {
     return (
       <Card className="p-4 border-destructive/40 bg-destructive/5">

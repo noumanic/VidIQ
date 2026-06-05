@@ -8,6 +8,13 @@ class AnalyzeRequest(BaseModel):
     extract_pseudocode: bool = False
 
 
+class TranscriptSubmitRequest(BaseModel):
+    transcript: str
+    title: str | None = None
+    domain: str | None = None
+    extract_pseudocode: bool = False
+
+
 class TranscriptSegmentDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     start: float
@@ -66,6 +73,9 @@ class VideoSummaryDTO(BaseModel):
     error: str | None = None
     tags: list[str] = []
     created_at: datetime
+    upload_required_reason: str | None = None
+    upload_message: str | None = None
+    available_actions: list[str] = []
 
 
 class VideoDetailDTO(VideoSummaryDTO):

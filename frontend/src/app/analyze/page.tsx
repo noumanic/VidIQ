@@ -73,8 +73,8 @@ export default function AnalyzePage() {
             Analyse a <span className="text-gradient-static">video</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            We&apos;ll fetch the video, transcribe speech, analyse keyframes and produce a
-            full report — usually in under a minute.
+            Hosted analysis uses public captions first. If YouTube blocks automated access,
+            paste a transcript or upload transcript, audio, or video for full analysis.
           </p>
         </motion.div>
 
@@ -93,7 +93,7 @@ export default function AnalyzePage() {
             >
               <CardHeader>
                 <CardTitle>Video source</CardTitle>
-                <CardDescription>YouTube, Shorts, or any URL yt-dlp can resolve.</CardDescription>
+                <CardDescription>YouTube URLs with upload fallback when hosted access is blocked.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-7">
                 <div className="space-y-2">

@@ -38,6 +38,14 @@ Set these in **Settings → Repository secrets** for the Space:
 | `MEDIA_DIR` | `/app/media` | ephemeral; fine for demos |
 | `CORS_ORIGINS` | *your Vercel URL, no trailing slash* | e.g. `https://vidiq.vercel.app` |
 
+Optional YouTube authentication:
+
+| Key | Value | Notes |
+|---|---|---|
+| `YTDLP_COOKIE_FILE` | `/app/secrets/cookies.txt` | Netscape-format cookies file for private/sign-in-gated videos |
+| `YTDLP_COOKIES_FROM_BROWSER` | `chrome` or `firefox` | Local development only; hosted Docker spaces usually do not have a browser profile |
+| `YOUTUBE_DOWNLOAD_MODE` | `safe` | Use `safe` on Hugging Face. Use `full` only for local/trusted environments where YouTube media download is acceptable |
+
 ## Health check
 
 `GET /api/health` returns provider status. Hit it once after a redeploy

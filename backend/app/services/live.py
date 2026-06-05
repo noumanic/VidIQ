@@ -71,18 +71,18 @@ class LiveSession:
         out_template = str(out_dir / f"chunk_{idx:05d}.%(ext)s")
 
         def _run() -> Path | None:
-            import shutil as _sh
-            from app.services.youtube import _ffmpeg_dir
-            opts = {
-                "format": "bv*[height<=720]+ba/b[height<=720]/bv*+ba/b",
-                "outtmpl": out_template,
-                "quiet": True,
-                "no_warnings": True,
-                "live_from_start": False,
-                "download_ranges": yt_dlp.utils.download_range_func(None, [(0, self.chunk_seconds)]),
-                "force_keyframes_at_cuts": True,
-                "merge_output_format": "mp4",
-            }
+            from app.services.youtube import _ffmpeg_dir, hardened_ytdlp_opts
+            from app.services.youtube_policy import assert_media_download_allowed
+
+            assert_media_download_allowed()
+            opts = hardened_ytdlp_opts(
+                format="bv*[height<=720]+ba/b[height<=720]/bv*+ba/b",
+                outtmpl=out_template,
+                live_from_start=False,
+                download_ranges=yt_dlp.utils.download_range_func(None, [(0, self.chunk_seconds)]),
+                force_keyframes_at_cuts=True,
+                merge_output_format="mp4",
+            )
             ff_dir = _ffmpeg_dir()
             if ff_dir:
                 opts["ffmpeg_location"] = ff_dir
