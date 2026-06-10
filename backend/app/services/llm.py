@@ -724,21 +724,34 @@ def gemini_status() -> dict[str, Any]:
     now = time.time()
     slots = _list_gemini_models()
     statuses: list[dict[str, Any]] = []
+    key_status: dict[str, dict[str, Any]] = {}
     for token in slots:
         key_id, model_id = _parse_gemini_slot(token)
         cd = _gemini_slot_cooldown.get(token, 0)
+        available = cd <= now
+        current = key_status.setdefault(
+            key_id,
+            {"key": key_id, "slots_total": 0, "slots_available_now": 0, "cooldown_seconds": 0},
+        )
+        current["slots_total"] += 1
+        if available:
+            current["slots_available_now"] += 1
+        else:
+            current["cooldown_seconds"] = max(current["cooldown_seconds"], int(cd - now))
         statuses.append({
             "key": key_id,
             "model": model_id,
-            "available": cd <= now,
+            "available": available,
             "cooldown_seconds": max(0, int(cd - now)),
         })
     available_count = sum(1 for s in statuses if s["available"])
     return {
         "configured": bool(settings.gemini_api_keys),
         "keys_total": len(settings.gemini_api_keys),
+        "keys_available_now": sum(1 for item in key_status.values() if item["slots_available_now"] > 0),
         "slots_total": len(slots),
         "slots_available_now": available_count,
+        "keys": list(key_status.values()),
         "slots": statuses[:12],
     }
 

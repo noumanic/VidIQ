@@ -421,12 +421,19 @@ async def summarize_video(
     if not overview:
         # Compose a synthetic overview from whatever transcript we have
         sample = " ".join(s.get("text", "") for s in transcript[:6]).strip()
-        overview = (
-            f"Summary unavailable from the LLM (likely rate-limited). "
-            f"Excerpt from the start of the video: \"{sample[:280]}…\""
-            if sample
-            else "Summary unavailable."
-        )
+        unavailable_transcript = "No spoken transcript available" in sample
+        if unavailable_transcript:
+            overview = (
+                "Summary unavailable because YouTube transcript/caption access did not return usable content "
+                "for this URL, and no downloaded audio/video transcript was available."
+            )
+        else:
+            overview = (
+                f"Summary unavailable from the LLM (likely rate-limited). "
+                f"Excerpt from the start of the video: \"{sample[:280]}…\""
+                if sample
+                else "Summary unavailable."
+            )
 
     if not chapters and transcript:
         # Synthesise simple chapters from transcript thirds
