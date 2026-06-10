@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     WHISPER_LOCAL_COMPUTE: str = "int8"
 
     # Local YouTube acquisition
-    YOUTUBE_DOWNLOAD_MODE: str = "safe"
+    YOUTUBE_DOWNLOAD_MODE: str = "auto"
     YTDLP_COOKIE_FILE: str | None = None
     YTDLP_COOKIES_FROM_BROWSER: str | None = None
 

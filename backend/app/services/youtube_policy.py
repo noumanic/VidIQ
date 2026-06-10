@@ -14,6 +14,12 @@ def youtube_download_mode() -> str:
 
 
 def is_safe_mode() -> bool:
+    """Full safe mode: blocks ALL automated access including transcript fetching."""
+    return youtube_download_mode() == "safe"
+
+
+def is_media_download_disabled() -> bool:
+    """True in any mode except 'full' - prevents audio/video download."""
     return youtube_download_mode() != "full"
 
 
@@ -50,8 +56,8 @@ def raise_youtube_blocked() -> None:
 
 
 def assert_media_download_allowed() -> None:
-    if is_safe_mode():
+    if is_media_download_disabled():
         raise YouTubeMediaDownloadDisabled(
-            "YouTube media download is disabled in safe mode. "
+            "YouTube media download is disabled unless YOUTUBE_DOWNLOAD_MODE=full. "
             "Use transcript, pasted transcript, or uploaded audio/video instead."
         )
