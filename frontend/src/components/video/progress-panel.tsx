@@ -60,7 +60,7 @@ export function ProgressPanel({ video, live = false }: { video: VideoDetail; liv
               <div className="text-sm font-semibold">Upload or transcript required</div>
               <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 {video.upload_message ||
-                  "YouTube blocked automated access from the hosted backend. For full analysis, paste a transcript, upload a transcript file, upload audio/video, or try another public video with available captions."}
+                  "YouTube blocked automated access. For local full analysis, make sure browser cookies are available to yt-dlp, paste a transcript, upload a transcript file, upload audio/video, or try another public video with available captions."}
               </div>
             </div>
 

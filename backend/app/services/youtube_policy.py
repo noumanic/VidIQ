@@ -1,4 +1,4 @@
-import os
+from app.core.config import get_settings
 
 
 class YouTubeBlockedError(RuntimeError):
@@ -10,7 +10,7 @@ class YouTubeMediaDownloadDisabled(RuntimeError):
 
 
 def youtube_download_mode() -> str:
-    return os.getenv("YOUTUBE_DOWNLOAD_MODE", "safe").lower().strip()
+    return get_settings().YOUTUBE_DOWNLOAD_MODE.lower().strip()
 
 
 def is_safe_mode() -> bool:
@@ -43,14 +43,15 @@ def is_youtube_block_error(error: object) -> bool:
 
 def raise_youtube_blocked() -> None:
     raise YouTubeBlockedError(
-        "YouTube blocked automated access from the hosted backend. "
-        "For full analysis, please paste a transcript or upload an audio/video file."
+        "YouTube blocked automated access. For local full analysis, make sure "
+        "browser cookies are available to yt-dlp, paste a transcript, or upload "
+        "an audio/video file."
     )
 
 
 def assert_media_download_allowed() -> None:
     if is_safe_mode():
         raise YouTubeMediaDownloadDisabled(
-            "YouTube media download is disabled in hosted safe mode. "
+            "YouTube media download is disabled in safe mode. "
             "Use transcript, pasted transcript, or uploaded audio/video instead."
         )

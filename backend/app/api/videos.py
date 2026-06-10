@@ -36,8 +36,8 @@ router = APIRouter(prefix="/api/videos", tags=["videos"])
 settings = get_settings()
 
 UPLOAD_REQUIRED_MESSAGE = (
-    "YouTube blocked automated access from the hosted backend. For full analysis, "
-    "use one of the upload or transcript options."
+    "YouTube blocked automated access. For local full analysis, make sure browser "
+    "cookies are available to yt-dlp, or use one of the upload or transcript options."
 )
 UPLOAD_ACTIONS = ["paste_transcript", "upload_transcript", "upload_audio", "upload_video"]
 

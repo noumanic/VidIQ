@@ -33,9 +33,9 @@ from app.services.youtube_policy import (
 settings = get_settings()
 
 UPLOAD_REQUIRED_MESSAGE = (
-    "YouTube blocked automated access from the hosted backend. For full analysis, "
-    "paste a transcript, upload a transcript file, upload audio/video, or try "
-    "another public video with available captions."
+    "YouTube blocked automated access. For local full analysis, make sure browser "
+    "cookies are available to yt-dlp, paste a transcript, upload a transcript file, "
+    "upload audio/video, or try another public video with available captions."
 )
 UPLOAD_ACTIONS = ["paste_transcript", "upload_transcript", "upload_audio", "upload_video"]
 
@@ -132,7 +132,7 @@ async def run_youtube_pipeline(
         try:
             meta = await yt_svc.fetch_oembed_metadata(url)
         except Exception as e:
-            if is_youtube_block_error(e):
+            if is_youtube_block_error(e) and safe_mode:
                 await _mark_needs_upload(
                     video_id,
                     meta=_fallback_metadata(url),
@@ -143,7 +143,7 @@ async def run_youtube_pipeline(
             try:
                 meta = await yt_svc.fetch_limited_metadata(url) if safe_mode else await yt_svc.fetch_metadata(url)
             except Exception as fallback_error:
-                if is_youtube_block_error(fallback_error):
+                if is_youtube_block_error(fallback_error) and safe_mode:
                     await _mark_needs_upload(
                         video_id,
                         meta=_fallback_metadata(url),
@@ -167,7 +167,7 @@ async def run_youtube_pipeline(
         try:
             segments = await yt_svc.fetch_youtube_transcript(url)
         except Exception as e:
-            if is_youtube_block_error(e):
+            if is_youtube_block_error(e) and safe_mode:
                 await _mark_needs_upload(
                     video_id,
                     meta=meta,

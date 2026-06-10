@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     WHISPER_LOCAL_DEVICE: str = "cpu"
     WHISPER_LOCAL_COMPUTE: str = "int8"
 
+    # Local YouTube acquisition
+    YOUTUBE_DOWNLOAD_MODE: str = "safe"
+    YTDLP_COOKIE_FILE: str | None = None
+    YTDLP_COOKIES_FROM_BROWSER: str | None = None
+
     # App
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000

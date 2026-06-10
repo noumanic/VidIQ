@@ -12,6 +12,7 @@ import yt_dlp
 from loguru import logger
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+from app.core.config import get_settings
 from app.services.youtube_policy import (
     YouTubeBlockedError,
     assert_media_download_allowed,
@@ -45,7 +46,7 @@ def hardened_ytdlp_opts(**overrides: Any) -> dict[str, Any]:
         "geo_bypass": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["web", "mweb"],
+                "player_client": ["android", "web", "mweb"],
             },
         },
         "http_headers": {
@@ -57,11 +58,12 @@ def hardened_ytdlp_opts(**overrides: Any) -> dict[str, Any]:
             "Accept-Language": "en-US,en;q=0.9",
         },
     }
-    cookie_file = os.getenv("YTDLP_COOKIE_FILE", "").strip()
+    settings = get_settings()
+    cookie_file = (settings.YTDLP_COOKIE_FILE or "").strip()
     if cookie_file:
         opts["cookiefile"] = cookie_file
 
-    cookies_from_browser = os.getenv("YTDLP_COOKIES_FROM_BROWSER", "").strip()
+    cookies_from_browser = (settings.YTDLP_COOKIES_FROM_BROWSER or "").strip()
     if cookies_from_browser:
         browser, _, profile = cookies_from_browser.partition(":")
         opts["cookiesfrombrowser"] = (
@@ -94,11 +96,35 @@ def _friendly_ytdlp_error(exc: Exception) -> YouTubeAccessError:
     return YouTubeAccessError(msg)
 
 
+def _is_browser_cookie_copy_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return (
+        ("could not copy" in text and "cookie database" in text)
+        or ("failed to decrypt with dpapi" in text)
+    )
+
+
+def _drop_cookie_options(opts: dict[str, Any]) -> dict[str, Any]:
+    fallback = dict(opts)
+    fallback.pop("cookiesfrombrowser", None)
+    fallback.pop("cookiefile", None)
+    return fallback
+
+
 def _extract_with_ytdlp(url: str, opts: dict[str, Any], *, download: bool) -> dict[str, Any]:
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             return ydl.extract_info(url, download=download)
     except Exception as exc:
+        if _is_browser_cookie_copy_error(exc) and (
+            opts.get("cookiesfrombrowser") or opts.get("cookiefile")
+        ):
+            logger.warning(f"yt-dlp cookie extraction failed; retrying without cookies: {exc}")
+            try:
+                with yt_dlp.YoutubeDL(_drop_cookie_options(opts)) as ydl:
+                    return ydl.extract_info(url, download=download)
+            except Exception as retry_exc:
+                raise _friendly_ytdlp_error(retry_exc) from retry_exc
         raise _friendly_ytdlp_error(exc) from exc
 
 
