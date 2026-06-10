@@ -368,11 +368,19 @@ async def fetch_ytdlp_caption_transcript(url: str) -> list[dict[str, Any]] | Non
             writesubtitles=True,
             writeautomaticsub=True,
             subtitleslangs=["en", "en.*"],
+            retries=1,
+            fragment_retries=1,
+            extractor_retries=1,
+            socket_timeout=8,
         )
         info = _extract_with_ytdlp(url, opts, download=False)
         return _choose_caption_track(info)
 
-    track = await asyncio.to_thread(_get_caption_track)
+    try:
+        track = await asyncio.wait_for(asyncio.to_thread(_get_caption_track), timeout=25.0)
+    except asyncio.TimeoutError:
+        logger.info("Timed out while fetching yt-dlp caption metadata")
+        return None
     if not track or not track.get("url"):
         return None
 
