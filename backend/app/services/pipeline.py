@@ -177,6 +177,21 @@ async def run_youtube_pipeline(
             logger.info(f"Transcript fetch failed: {e}")
             segments = None
 
+        if not segments:
+            await _emit(video_id, stage="captions", progress=0.18, message="Checking public caption tracks")
+            try:
+                segments = await yt_svc.fetch_ytdlp_caption_transcript(url)
+            except Exception as e:
+                if is_youtube_block_error(e) and safe_mode:
+                    await _mark_needs_upload(
+                        video_id,
+                        meta=meta,
+                        reason="youtube_captions_blocked",
+                    )
+                    return
+                logger.info(f"Caption track fetch failed: {e}")
+                segments = None
+
         if not segments and safe_mode:
             await _mark_needs_upload(
                 video_id,

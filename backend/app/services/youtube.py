@@ -1,7 +1,7 @@
 """YouTube acquisition: metadata, audio, transcript."""
 
 import asyncio
-import os
+import json
 import re
 import shutil
 from pathlib import Path
@@ -276,3 +276,116 @@ async def fetch_youtube_transcript(url: str) -> list[dict[str, Any]] | None:
         ]
 
     return await asyncio.to_thread(_run)
+
+
+def _caption_track_priority(track: dict[str, Any]) -> tuple[int, int]:
+    ext = (track.get("ext") or "").lower()
+    name = (track.get("name") or "").lower()
+    ext_rank = {"json3": 0, "vtt": 1, "srv3": 2, "ttml": 3}.get(ext, 9)
+    name_rank = 0 if "default" in name else 1
+    return (ext_rank, name_rank)
+
+
+def _choose_caption_track(info: dict[str, Any]) -> dict[str, Any] | None:
+    pools = [
+        info.get("subtitles") or {},
+        info.get("automatic_captions") or {},
+    ]
+    language_order = ("en", "en-US", "en-GB")
+    for pool in pools:
+        for lang in language_order:
+            tracks = pool.get(lang)
+            if tracks:
+                return sorted(tracks, key=_caption_track_priority)[0]
+        for lang, tracks in pool.items():
+            if str(lang).lower().startswith("en") and tracks:
+                return sorted(tracks, key=_caption_track_priority)[0]
+    return None
+
+
+def _clean_caption_text(text: str) -> str:
+    text = re.sub(r"<[^>]+>", "", text)
+    text = text.replace("\n", " ")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _parse_json3_captions(raw: str) -> list[dict[str, Any]]:
+    data = json.loads(raw)
+    segments: list[dict[str, Any]] = []
+    for event in data.get("events", []):
+        parts = event.get("segs") or []
+        text = _clean_caption_text("".join(str(part.get("utf8", "")) for part in parts))
+        if not text:
+            continue
+        start = float(event.get("tStartMs", 0)) / 1000.0
+        duration = float(event.get("dDurationMs", 0)) / 1000.0
+        segments.append({"start": start, "end": start + duration, "text": text})
+    return segments
+
+
+def _parse_vtt_timestamp(value: str) -> float:
+    value = value.strip().replace(",", ".")
+    pieces = value.split(":")
+    seconds = float(pieces[-1])
+    minutes = int(pieces[-2]) if len(pieces) >= 2 else 0
+    hours = int(pieces[-3]) if len(pieces) >= 3 else 0
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def _parse_vtt_captions(raw: str) -> list[dict[str, Any]]:
+    segments: list[dict[str, Any]] = []
+    lines = raw.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if "-->" not in line:
+            i += 1
+            continue
+        start_raw, end_raw = line.split("-->", 1)
+        end_raw = end_raw.strip().split(" ", 1)[0]
+        start = _parse_vtt_timestamp(start_raw)
+        end = _parse_vtt_timestamp(end_raw)
+        i += 1
+        text_lines: list[str] = []
+        while i < len(lines) and lines[i].strip():
+            text_lines.append(lines[i].strip())
+            i += 1
+        text = _clean_caption_text(" ".join(text_lines))
+        if text:
+            segments.append({"start": start, "end": end, "text": text})
+        i += 1
+    return segments
+
+
+async def fetch_ytdlp_caption_transcript(url: str) -> list[dict[str, Any]] | None:
+    """Fetch public subtitle/auto-caption tracks through yt-dlp metadata."""
+
+    def _get_caption_track() -> dict[str, Any] | None:
+        opts = hardened_ytdlp_opts(
+            skip_download=True,
+            ignore_no_formats_error=True,
+            writesubtitles=True,
+            writeautomaticsub=True,
+            subtitleslangs=["en", "en.*"],
+        )
+        info = _extract_with_ytdlp(url, opts, download=False)
+        return _choose_caption_track(info)
+
+    track = await asyncio.to_thread(_get_caption_track)
+    if not track or not track.get("url"):
+        return None
+
+    headers = hardened_ytdlp_opts().get("http_headers", {})
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True, headers=headers) as client:
+        response = await client.get(track["url"])
+        response.raise_for_status()
+        raw = response.text
+
+    ext = (track.get("ext") or "").lower()
+    try:
+        segments = _parse_json3_captions(raw) if ext == "json3" else _parse_vtt_captions(raw)
+    except Exception as exc:
+        logger.info(f"Failed to parse yt-dlp caption track ({ext}): {exc}")
+        return None
+    return segments or None
