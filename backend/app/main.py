@@ -72,6 +72,8 @@ async def health() -> dict:
         "model": settings.llm_display_model,
         "transcription_provider": settings.TRANSCRIPTION_PROVIDER,
         "youtube_download_mode": settings.YOUTUBE_DOWNLOAD_MODE,
+        "youtube_cookie_file_configured": bool(settings.YTDLP_COOKIE_FILE),
+        "youtube_cookies_text_configured": bool(settings.YTDLP_COOKIES_TEXT),
     }
     if settings.LLM_PROVIDER == "gemini":
         from app.services.llm import gemini_status

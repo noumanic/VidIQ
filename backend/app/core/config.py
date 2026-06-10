@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # Local YouTube acquisition
     YOUTUBE_DOWNLOAD_MODE: str = "auto"
     YTDLP_COOKIE_FILE: str | None = None
+    YTDLP_COOKIES_TEXT: str | None = None
     YTDLP_COOKIES_FROM_BROWSER: str | None = None
 
     # App

@@ -43,6 +43,7 @@ Optional YouTube authentication:
 | Key | Value | Notes |
 |---|---|---|
 | `YTDLP_COOKIE_FILE` | `/app/secrets/cookies.txt` | Netscape-format cookies file for private/sign-in-gated videos |
+| `YTDLP_COOKIES_TEXT` | *cookies.txt contents* | Use this as a Hugging Face secret when you cannot mount a cookie file |
 | `YTDLP_COOKIES_FROM_BROWSER` | `chrome` or `firefox` | Local development only; hosted Docker spaces usually do not have a browser profile |
 | `YOUTUBE_DOWNLOAD_MODE` | `auto` | `auto` tries transcripts/captions, then audio + Whisper fallback. Use `full` to also download video for frame analysis. Use `safe` to require upload/transcript. |
 

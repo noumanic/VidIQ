@@ -2,8 +2,10 @@
 
 import asyncio
 import json
+import os
 import re
 import shutil
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -23,10 +25,29 @@ from app.services.youtube_policy import (
 
 
 YT_ID_RE = re.compile(r"(?:v=|youtu\.be/|/embed/|/shorts/)([\w-]{11})")
+_COOKIE_TEXT_PATH: Path | None = None
 
 
 class YouTubeAccessError(YouTubeBlockedError):
     """Backward-compatible alias for user-facing YouTube extraction failures."""
+
+
+def _cookies_text_file() -> str | None:
+    global _COOKIE_TEXT_PATH
+    settings = get_settings()
+    text = (settings.YTDLP_COOKIES_TEXT or "").strip()
+    if not text:
+        return None
+    if _COOKIE_TEXT_PATH and _COOKIE_TEXT_PATH.exists():
+        return str(_COOKIE_TEXT_PATH)
+    cookie_path = Path(tempfile.gettempdir()) / "vidiq_ytdlp_cookies.txt"
+    cookie_path.write_text(text + "\n", encoding="utf-8")
+    try:
+        os.chmod(cookie_path, 0o600)
+    except OSError:
+        pass
+    _COOKIE_TEXT_PATH = cookie_path
+    return str(cookie_path)
 
 
 def hardened_ytdlp_opts(**overrides: Any) -> dict[str, Any]:
@@ -64,6 +85,10 @@ def hardened_ytdlp_opts(**overrides: Any) -> dict[str, Any]:
     cookie_file = (settings.YTDLP_COOKIE_FILE or "").strip()
     if cookie_file:
         opts["cookiefile"] = cookie_file
+    else:
+        cookies_text_file = _cookies_text_file()
+        if cookies_text_file:
+            opts["cookiefile"] = cookies_text_file
 
     cookies_from_browser = (settings.YTDLP_COOKIES_FROM_BROWSER or "").strip()
     if cookies_from_browser:
