@@ -1,11 +1,32 @@
 from functools import lru_cache
+import os
 from pathlib import Path
+import re
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # Absolute path to backend/.env so settings load regardless of cwd
 # (e.g. uvicorn launched from the repo root with --app-dir backend).
 _ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+_NUMBERED_GEMINI_KEY_RE = re.compile(r"^GEMINI_API_KEY(\d+)$")
+
+
+def _read_env_file_values(prefix: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not _ENV_FILE.exists():
+        return values
+    for raw in _ENV_FILE.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key.startswith(prefix):
+            continue
+        value = value.strip().strip('"').strip("'")
+        if value:
+            values[key] = value
+    return values
 
 
 class Settings(BaseSettings):
@@ -63,9 +84,33 @@ class Settings(BaseSettings):
     def llm_configured(self) -> bool:
         # Configured if ANY usable provider key exists — the runtime auto-falls
         # back across providers when one is unavailable.
-        if self.GEMINI_API_KEY or self.GROQ_API_KEY or self.OPENAI_API_KEY:
+        if self.gemini_api_keys or self.GROQ_API_KEY or self.OPENAI_API_KEY:
             return True
         return False
+
+    @property
+    def gemini_api_keys(self) -> list[str]:
+        values: list[tuple[int, str]] = []
+        if self.GEMINI_API_KEY:
+            values.append((0, self.GEMINI_API_KEY.strip()))
+
+        merged = _read_env_file_values("GEMINI_API_KEY")
+        for key, value in os.environ.items():
+            if key.startswith("GEMINI_API_KEY") and value.strip():
+                merged[key] = value.strip()
+
+        for key, value in merged.items():
+            match = _NUMBERED_GEMINI_KEY_RE.match(key)
+            if match:
+                values.append((int(match.group(1)), value.strip()))
+
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for _, value in sorted(values, key=lambda item: item[0]):
+            if value and value not in seen:
+                seen.add(value)
+                ordered.append(value)
+        return ordered
 
     @property
     def llm_display_model(self) -> str:

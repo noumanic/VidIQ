@@ -27,7 +27,7 @@ Set these in **Settings → Repository secrets** for the Space:
 | Key | Value | Notes |
 |---|---|---|
 | `LLM_PROVIDER` | `gemini` | |
-| `GEMINI_API_KEY` | *your free Gemini key* | <https://aistudio.google.com/app/apikey> |
+| `GEMINI_API_KEY` | *your free Gemini key* | Primary key. You can also set numbered keys such as `GEMINI_API_KEY1`, `GEMINI_API_KEY2`, `GEMINI_API_KEY3`, etc. for automatic quota failover. |
 | `GEMINI_MODEL` | `gemini-flash-latest` | or `gemini-2.0-flash-lite` |
 | `GEMINI_VISION_MODEL` | `gemini-flash-latest` | |
 | `GROQ_API_KEY` | *your free Groq key* | <https://console.groq.com/keys> — fallback |
@@ -44,7 +44,7 @@ Optional YouTube authentication:
 |---|---|---|
 | `YTDLP_COOKIE_FILE` | `/app/secrets/cookies.txt` | Netscape-format cookies file for private/sign-in-gated videos |
 | `YTDLP_COOKIES_FROM_BROWSER` | `chrome` or `firefox` | Local development only; hosted Docker spaces usually do not have a browser profile |
-| `YOUTUBE_DOWNLOAD_MODE` | `safe` | Use `safe` on Hugging Face. Use `full` only for local/trusted environments where YouTube media download is acceptable |
+| `YOUTUBE_DOWNLOAD_MODE` | `auto` | `auto` tries transcripts/captions without media download. Use `full` only for local/trusted environments where YouTube media download is acceptable. Use `safe` to require upload/transcript. |
 
 ## Health check
 

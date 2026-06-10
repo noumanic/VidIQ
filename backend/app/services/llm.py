@@ -144,6 +144,120 @@ def _get_gemini():
 
 
 # ── OpenAI lazy ──────────────────────────────────────────────────────────
+# Key-aware Gemini rotation. These definitions intentionally override the
+# single-key helpers above while preserving their public call signatures.
+_gemini_available_by_key: dict[str, list[str]] = {}
+_gemini_slot_cooldown: dict[str, float] = {}
+_gemini_slot_models_cache: dict[str, tuple[Any, Any, Any]] = {}
+_GEMINI_SLOT_SEP = "::"
+
+
+def _gemini_key_slots() -> list[tuple[str, str]]:
+    return [(f"key{idx + 1}", key) for idx, key in enumerate(settings.gemini_api_keys)]
+
+
+def _gemini_slot_token(key_id: str, model_id: str) -> str:
+    return f"{key_id}{_GEMINI_SLOT_SEP}{model_id}"
+
+
+def _parse_gemini_slot(token: str) -> tuple[str, str]:
+    if _GEMINI_SLOT_SEP in token:
+        key_id, model_id = token.split(_GEMINI_SLOT_SEP, 1)
+        return key_id, model_id
+    return "key1", token
+
+
+def _list_gemini_models_for_key(key_id: str, api_key: str) -> list[str]:
+    cached = _gemini_available_by_key.get(key_id)
+    if cached is not None:
+        return cached
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        avail = {
+            m.name.replace("models/", "")
+            for m in genai.list_models()
+            if "generateContent" in m.supported_generation_methods
+        }
+        ordered: list[str] = []
+        for cand in [settings.GEMINI_MODEL, *GEMINI_FALLBACK_CHAIN]:
+            if cand in avail and cand not in ordered:
+                ordered.append(cand)
+        for cand in sorted(avail):
+            if cand not in ordered:
+                ordered.append(cand)
+        _gemini_available_by_key[key_id] = ordered
+        logger.info(f"Gemini models discovered for {key_id}: {ordered[:5]}")
+    except Exception as e:
+        logger.warning(f"Could not list Gemini models for {key_id}, falling back to config: {e}")
+        _gemini_available_by_key[key_id] = [settings.GEMINI_MODEL, *GEMINI_FALLBACK_CHAIN]
+    return _gemini_available_by_key[key_id]
+
+
+def _list_gemini_models() -> list[str]:
+    tokens: list[str] = []
+    for key_id, api_key in _gemini_key_slots():
+        for model_id in _list_gemini_models_for_key(key_id, api_key):
+            tokens.append(_gemini_slot_token(key_id, model_id))
+    return tokens
+
+
+def _next_usable_model() -> str | None:
+    now = time.time()
+    for token in _list_gemini_models():
+        if _gemini_slot_cooldown.get(token, 0) <= now:
+            return token
+    return None
+
+
+def _cool_off(model_id: str, seconds: float) -> None:
+    until = time.time() + max(seconds, 5)
+    key_id, clean_model_id = _parse_gemini_slot(model_id)
+    for token in _list_gemini_models():
+        token_key_id, _ = _parse_gemini_slot(token)
+        if token_key_id == key_id:
+            _gemini_slot_cooldown[token] = until
+    remaining = sum(1 for token in _list_gemini_models() if _gemini_slot_cooldown.get(token, 0) <= time.time())
+    logger.warning(
+        f"Cooling off Gemini {key_id} after {clean_model_id} for {seconds:.0f}s "
+        f"(remaining key-model slots: {remaining})"
+    )
+
+
+def _get_gemini_for(model_id: str):
+    cached = _gemini_slot_models_cache.get(model_id)
+    if cached:
+        return cached
+    key_id, clean_model_id = _parse_gemini_slot(model_id)
+    api_key = dict(_gemini_key_slots()).get(key_id)
+    if not api_key:
+        return None, None, None
+    import google.generativeai as genai
+    genai.configure(api_key=api_key)
+    text = genai.GenerativeModel(clean_model_id)
+    vision = genai.GenerativeModel(clean_model_id)
+    text_json = genai.GenerativeModel(
+        clean_model_id, generation_config={"response_mime_type": "application/json"}
+    )
+    _gemini_slot_models_cache[model_id] = (text, vision, text_json)
+    logger.info(f"Gemini model ready: {key_id}/{clean_model_id}")
+    return text, vision, text_json
+
+
+def _resolve_gemini_model() -> str | None:
+    token = _next_usable_model()
+    if not token:
+        return None
+    return _parse_gemini_slot(token)[1]
+
+
+def _get_gemini():
+    token = _next_usable_model()
+    if not token:
+        return None, None, None
+    return _get_gemini_for(token)
+
+
 _openai_client = None
 
 
@@ -295,7 +409,7 @@ def _provider_chain() -> list[str]:
     for p in ("gemini", "groq", "openai"):
         if p in chain:
             continue
-        if p == "gemini" and settings.GEMINI_API_KEY:
+        if p == "gemini" and settings.gemini_api_keys:
             chain.append(p)
         elif p == "groq" and settings.GROQ_API_KEY:
             chain.append(p)
@@ -608,21 +722,24 @@ def _gemini_vision_sync(_unused, image_path: Path, prompt: str) -> dict[str, Any
 def gemini_status() -> dict[str, Any]:
     """Snapshot of Gemini availability for the /api/health endpoint."""
     now = time.time()
-    models = _list_gemini_models()
-    statuses = []
-    for m in models:
-        cd = _gemini_cooldown.get(m, 0)
+    slots = _list_gemini_models()
+    statuses: list[dict[str, Any]] = []
+    for token in slots:
+        key_id, model_id = _parse_gemini_slot(token)
+        cd = _gemini_slot_cooldown.get(token, 0)
         statuses.append({
-            "model": m,
+            "key": key_id,
+            "model": model_id,
             "available": cd <= now,
             "cooldown_seconds": max(0, int(cd - now)),
         })
     available_count = sum(1 for s in statuses if s["available"])
     return {
-        "configured": bool(settings.GEMINI_API_KEY),
-        "models_total": len(models),
-        "models_available_now": available_count,
-        "models": statuses[:8],
+        "configured": bool(settings.gemini_api_keys),
+        "keys_total": len(settings.gemini_api_keys),
+        "slots_total": len(slots),
+        "slots_available_now": available_count,
+        "slots": statuses[:12],
     }
 
 
