@@ -152,7 +152,7 @@ async def run_youtube_pipeline(
                 return
             logger.info(f"oEmbed metadata failed, trying metadata-only yt-dlp fallback: {e}")
             try:
-                meta = await yt_svc.fetch_limited_metadata(url) if safe_mode else await yt_svc.fetch_metadata(url)
+                meta = await yt_svc.fetch_limited_metadata(url) if video_disabled else await yt_svc.fetch_metadata(url)
             except Exception as fallback_error:
                 if is_youtube_block_error(fallback_error) and safe_mode:
                     await _mark_needs_upload(
