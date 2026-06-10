@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 import shutil
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFoun
 from app.core.config import get_settings
 from app.services.youtube_policy import (
     YouTubeBlockedError,
+    assert_audio_download_allowed,
     assert_media_download_allowed,
     is_youtube_block_error,
 )
@@ -197,7 +199,7 @@ async def fetch_oembed_metadata(url: str) -> dict[str, Any]:
 async def download_audio(url: str, out_dir: Path) -> Path:
     """Download just the audio. Whisper handles m4a/webm/mp3 natively, so we
     skip the FFmpegExtractAudio postprocessor unless explicitly asked."""
-    assert_media_download_allowed()
+    assert_audio_download_allowed()
     out_dir.mkdir(parents=True, exist_ok=True)
     out_template = str(out_dir / "%(id)s.%(ext)s")
 
@@ -356,6 +358,80 @@ def _parse_vtt_captions(raw: str) -> list[dict[str, Any]]:
             segments.append({"start": start, "end": end, "text": text})
         i += 1
     return segments
+
+
+def _parse_xml_captions(raw: str) -> list[dict[str, Any]]:
+    root = ET.fromstring(raw)
+    segments: list[dict[str, Any]] = []
+    for node in root.findall(".//text"):
+        text = _clean_caption_text("".join(node.itertext()))
+        if not text:
+            continue
+        start = float(node.attrib.get("start", 0))
+        duration = float(node.attrib.get("dur", 0))
+        segments.append({"start": start, "end": start + duration, "text": text})
+    return segments
+
+
+def _pick_timedtext_track(raw: str) -> dict[str, str] | None:
+    root = ET.fromstring(raw)
+    tracks: list[dict[str, str]] = []
+    for node in root.findall(".//track"):
+        attrs = {str(k): str(v) for k, v in node.attrib.items()}
+        if attrs.get("lang_code"):
+            tracks.append(attrs)
+    if not tracks:
+        return None
+    for lang in ("en", "en-US", "en-GB"):
+        for track in tracks:
+            if track.get("lang_code") == lang:
+                return track
+    for track in tracks:
+        if track.get("lang_code", "").lower().startswith("en"):
+            return track
+    return tracks[0]
+
+
+async def fetch_timedtext_caption_transcript(url: str) -> list[dict[str, Any]] | None:
+    """Fetch public captions through YouTube's timedtext endpoint."""
+    vid = extract_video_id(url)
+    if not vid:
+        return None
+
+    headers = hardened_ytdlp_opts().get("http_headers", {})
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, headers=headers) as client:
+        track_list = await client.get(
+            "https://www.youtube.com/api/timedtext",
+            params={"type": "list", "v": vid},
+        )
+        track_list.raise_for_status()
+        track = _pick_timedtext_track(track_list.text)
+        if not track:
+            return None
+
+        base_params = {"v": vid, "lang": track["lang_code"]}
+        if track.get("kind"):
+            base_params["kind"] = track["kind"]
+        if track.get("name"):
+            base_params["name"] = track["name"]
+
+        for fmt, parser in (
+            ("json3", _parse_json3_captions),
+            ("vtt", _parse_vtt_captions),
+            ("", _parse_xml_captions),
+        ):
+            params = dict(base_params)
+            if fmt:
+                params["fmt"] = fmt
+            try:
+                response = await client.get("https://www.youtube.com/api/timedtext", params=params)
+                response.raise_for_status()
+                segments = parser(response.text)
+                if segments:
+                    return segments
+            except Exception as exc:
+                logger.info(f"Timedtext caption fetch failed ({fmt or 'xml'}): {exc}")
+    return None
 
 
 async def fetch_ytdlp_caption_transcript(url: str) -> list[dict[str, Any]] | None:

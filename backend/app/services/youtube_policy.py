@@ -19,7 +19,17 @@ def is_safe_mode() -> bool:
 
 
 def is_media_download_disabled() -> bool:
-    """True in any mode except 'full' - prevents audio/video download."""
+    """True in modes that block audio/video acquisition."""
+    return youtube_download_mode() in {"safe", "captions", "metadata"}
+
+
+def is_audio_download_disabled() -> bool:
+    """Audio download is allowed in auto/full so Whisper can be a fallback."""
+    return is_media_download_disabled()
+
+
+def is_video_download_disabled() -> bool:
+    """Full video download stays opt-in because it is heavier than audio."""
     return youtube_download_mode() != "full"
 
 
@@ -58,6 +68,14 @@ def raise_youtube_blocked() -> None:
 def assert_media_download_allowed() -> None:
     if is_media_download_disabled():
         raise YouTubeMediaDownloadDisabled(
-            "YouTube media download is disabled unless YOUTUBE_DOWNLOAD_MODE=full. "
+            "YouTube media download is disabled in the current YouTube mode. "
+            "Use transcript, pasted transcript, or uploaded audio/video instead."
+        )
+
+
+def assert_audio_download_allowed() -> None:
+    if is_audio_download_disabled():
+        raise YouTubeMediaDownloadDisabled(
+            "YouTube audio download is disabled in the current YouTube mode. "
             "Use transcript, pasted transcript, or uploaded audio/video instead."
         )

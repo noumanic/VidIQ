@@ -71,6 +71,7 @@ async def health() -> dict:
         "provider": settings.LLM_PROVIDER,
         "model": settings.llm_display_model,
         "transcription_provider": settings.TRANSCRIPTION_PROVIDER,
+        "youtube_download_mode": settings.YOUTUBE_DOWNLOAD_MODE,
     }
     if settings.LLM_PROVIDER == "gemini":
         from app.services.llm import gemini_status

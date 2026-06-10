@@ -25,8 +25,9 @@ from app.services import youtube as yt_svc
 from app.services.youtube_policy import (
     YouTubeBlockedError,
     YouTubeMediaDownloadDisabled,
-    is_media_download_disabled,
+    is_audio_download_disabled,
     is_safe_mode,
+    is_video_download_disabled,
     is_youtube_block_error,
 )
 
@@ -130,7 +131,8 @@ async def run_youtube_pipeline(
     try:
         await _emit(video_id, stage="metadata", progress=0.05, message="Fetching video metadata")
         safe_mode = is_safe_mode()
-        media_disabled = is_media_download_disabled()
+        audio_disabled = is_audio_download_disabled()
+        video_disabled = is_video_download_disabled()
         if safe_mode:
             await _mark_needs_upload(
                 video_id,
@@ -201,10 +203,25 @@ async def run_youtube_pipeline(
                 logger.info(f"Caption track fetch failed: {e}")
                 segments = None
 
+        if not segments:
+            await _emit(video_id, stage="timedtext", progress=0.19, message="Checking timedtext captions")
+            try:
+                segments = await yt_svc.fetch_timedtext_caption_transcript(url)
+            except Exception as e:
+                if is_youtube_block_error(e) and safe_mode:
+                    await _mark_needs_upload(
+                        video_id,
+                        meta=meta,
+                        reason="youtube_timedtext_blocked",
+                    )
+                    return
+                logger.info(f"Timedtext caption fetch failed: {e}")
+                segments = None
+
         audio_path: Path | None = None
         if not segments:
-            if media_disabled:
-                logger.info("No transcript/caption segments found and media download is disabled")
+            if audio_disabled:
+                logger.info("No transcript/caption segments found and audio download is disabled")
                 segments = []
             else:
                 try:
@@ -213,22 +230,15 @@ async def run_youtube_pipeline(
                     await _emit(video_id, stage="transcribe", progress=0.30, message="Transcribing audio (Whisper)")
                     segments = await llm.transcribe_audio(audio_path)
                 except (YouTubeBlockedError, YouTubeMediaDownloadDisabled) as e:
-                    await _mark_needs_upload(
-                        video_id,
-                        meta=meta,
-                        reason="youtube_media_download_blocked_or_disabled",
-                    )
-                    return
+                    logger.warning(f"Audio fallback unavailable, continuing metadata-only: {e}")
+                    segments = []
                 except Exception as e:
                     if is_youtube_block_error(e):
-                        await _mark_needs_upload(
-                            video_id,
-                            meta=meta,
-                            reason="youtube_audio_blocked",
-                        )
-                        return
-                    logger.warning(f"Audio fallback failed: {e}")
-                    segments = []
+                        logger.warning(f"Audio fallback blocked, continuing metadata-only: {e}")
+                        segments = []
+                    else:
+                        logger.warning(f"Audio fallback failed: {e}")
+                        segments = []
 
         if not segments:
             # Last resort: continue with metadata-only analysis so the user gets
@@ -250,7 +260,7 @@ async def run_youtube_pipeline(
 
         # 2. Video download for frames (use lowest reasonable quality if not already)
         await _emit(video_id, stage="frames-download", progress=0.45, message="Downloading video for frame analysis")
-        if media_disabled:
+        if video_disabled:
             video_path = None
         else:
             try:
