@@ -133,6 +133,8 @@ async def run_youtube_pipeline(
         safe_mode = is_safe_mode()
         audio_disabled = is_audio_download_disabled()
         video_disabled = is_video_download_disabled()
+        # Only hard-exit for YOUTUBE_DOWNLOAD_MODE=safe (explicit operator lockdown).
+        # All other modes must attempt transcript/caption fetching before giving up.
         if safe_mode:
             await _mark_needs_upload(
                 video_id,

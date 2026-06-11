@@ -24,8 +24,9 @@ def is_media_download_disabled() -> bool:
 
 
 def is_audio_download_disabled() -> bool:
-    """Audio download is allowed in auto/full so Whisper can be a fallback."""
-    return is_media_download_disabled()
+    """Audio download disabled only in captions/metadata/safe modes.
+    In 'auto' (default, unset) or 'full' mode, Whisper is available as a fallback."""
+    return youtube_download_mode() in {"safe", "captions", "metadata"}
 
 
 def is_video_download_disabled() -> bool:
